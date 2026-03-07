@@ -69,6 +69,30 @@
        <item><widget class="QPushButton" name="btnRebuildRun"><property name="text"><string>再作成実行</string></property></widget></item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabMapCopy">
+      <attribute name="title"><string>地図コピー</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutMapCopy">
+       <item><widget class="QPushButton" name="btnMapCopyReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelMapCopySourceLayout"><property name="text"><string>元レイアウト</string></property></widget></item>
+       <item><widget class="QComboBox" name="comboMapCopySourceLayout"/></item>
+       <item><widget class="QLabel" name="labelMapCopySourceMap"><property name="text"><string>元地図アイテム</string></property></widget></item>
+       <item><widget class="QComboBox" name="comboMapCopySourceMap"/></item>
+       <item><widget class="QPushButton" name="btnMapCopyCapture"><property name="text"><string>選択地図から取得</string></property></widget></item>
+       <item><widget class="QLabel" name="labelMapCopySnapshot"><property name="text"><string>取得したスナップショット</string></property></widget></item>
+       <item><widget class="QTextEdit" name="textEditMapCopySnapshot"/></item>
+       <item><widget class="QLabel" name="labelMapCopyTargetLayout"><property name="text"><string>コピー先レイアウト</string></property></widget></item>
+       <item><widget class="QComboBox" name="comboMapCopyTargetLayout"/></item>
+       <item><widget class="QLabel" name="labelMapCopyTargetMaps"><property name="text"><string>コピー先地図アイテム（複数選択可）</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetMapCopyTargets"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutMapCopyOptions">
+         <item><widget class="QCheckBox" name="checkMapCopyExtent"><property name="text"><string>EXTENTをコピー</string></property></widget></item>
+         <item><widget class="QCheckBox" name="checkMapCopyExpression"><property name="text"><string>expressionをコピー</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QPushButton" name="btnMapCopyRun"><property name="text"><string>コピー実施</string></property></widget></item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item><widget class="QLabel" name="labelSummary"><property name="text"><string/></property></widget></item>
@@ -78,4 +102,3 @@
  <resources/>
  <connections/>
 </ui>
-

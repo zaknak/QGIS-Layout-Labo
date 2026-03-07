@@ -11,6 +11,8 @@ from qgis.core import (
     QgsRectangle,
 )
 
+from ..models.map_item_selection import MapItemSelection
+
 
 def get_project_layout_names() -> list[str]:
     """現在プロジェクトのレイアウト名一覧を返す。
@@ -94,6 +96,97 @@ def get_map_items(layout: object) -> list[QgsLayoutItemMap]:
         return items
     except Exception as exc:
         raise RuntimeError(f"地図アイテムの取得に失敗しました: {exc}") from exc
+
+
+def build_map_item_selections(layout: object) -> list[MapItemSelection]:
+    """レイアウト内地図アイテムの選択情報一覧を返す。
+
+    概要:
+        同一 `map_item_id` の重複に対応するため、
+        出現順連番付きの表示名を持つ選択情報を生成する。
+
+    引数:
+        layout: 対象レイアウト。
+
+    戻り値:
+        list[MapItemSelection]: UI選択用の地図アイテム識別情報一覧。
+
+    例外:
+        RuntimeError: 地図アイテム取得に失敗した場合。
+
+    使用例:
+        >>> selections = build_map_item_selections(layout)
+    """
+    map_items = get_map_items(layout)
+    id_counts: dict[str, int] = {}
+    selections: list[MapItemSelection] = []
+    for item in map_items:
+        map_item_id = item.id() or ""
+        occurrence_index = id_counts.get(map_item_id, 0) + 1
+        id_counts[map_item_id] = occurrence_index
+        display_name = f"{map_item_id} (#{occurrence_index})"
+        selections.append(
+            MapItemSelection(
+                map_item_id=map_item_id,
+                occurrence_index=occurrence_index,
+                display_name=display_name,
+            )
+        )
+    return selections
+
+
+def get_layout_map_item_selections(layout_name: str) -> list[MapItemSelection]:
+    """指定レイアウト名の地図アイテム選択情報一覧を返す。
+
+    概要:
+        レイアウト名でレイアウトを取得し、選択情報一覧を生成する。
+
+    引数:
+        layout_name: 対象レイアウト名。
+
+    戻り値:
+        list[MapItemSelection]: 選択情報一覧。対象レイアウトが無い場合は空。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> selections = get_layout_map_item_selections("LayoutA")
+    """
+    layout = find_layout_by_name(layout_name)
+    if layout is None:
+        return []
+    return build_map_item_selections(layout)
+
+
+def find_map_item_by_selection(layout: object, selection: MapItemSelection) -> QgsLayoutItemMap | None:
+    """選択情報からレイアウト内地図アイテムを解決する。
+
+    概要:
+        `map_item_id` と同一ID内出現順を使って対象地図アイテムを特定する。
+
+    引数:
+        layout: 対象レイアウト。
+        selection: 解決対象の選択情報。
+
+    戻り値:
+        QgsLayoutItemMap | None: 一致地図アイテム。見つからない場合はNone。
+
+    例外:
+        RuntimeError: 地図アイテム取得に失敗した場合。
+
+    使用例:
+        >>> item = find_map_item_by_selection(layout, selection)
+    """
+    matched_count = 0
+    for item in get_map_items(layout):
+        map_item_id = item.id() or ""
+        if map_item_id != selection.map_item_id:
+            continue
+        matched_count += 1
+        if matched_count == selection.occurrence_index:
+            return item
+    return None
 
 
 def get_item_expression(map_item: QgsLayoutItemMap) -> str:
