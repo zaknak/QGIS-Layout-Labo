@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainDialog</class>
+ <widget class="QDialog" name="MainDialog">
+  <property name="geometry">
+   <rect><x>0</x><y>0</y><width>980</width><height>720</height></rect>
+  </property>
+  <property name="windowTitle">
+   <string>Layout Map Transfer</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayoutRoot">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <widget class="QWidget" name="tabExport">
+      <attribute name="title"><string>エクスポート</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutExport">
+       <item><widget class="QPushButton" name="btnExportReload"><property name="text"><string>再読込</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetExportLayouts"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutExportCsv">
+         <item><widget class="QLineEdit" name="lineEditExportCsv"/></item>
+         <item><widget class="QPushButton" name="btnExportBrowse"><property name="text"><string>参照</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QPushButton" name="btnExportRun"><property name="text"><string>エクスポート実行</string></property></widget></item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabImport">
+      <attribute name="title"><string>インポート</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutImport">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutImportCsv">
+         <item><widget class="QLineEdit" name="lineEditImportCsv"/></item>
+         <item><widget class="QPushButton" name="btnImportBrowse"><property name="text"><string>参照</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="labelImportCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetImportCsvLayouts"/></item>
+       <item><widget class="QPushButton" name="btnImportReload"><property name="text"><string>再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelImportTargetLayouts"><property name="text"><string>適用対象レイアウト</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetImportTargetLayouts"/></item>
+       <item><widget class="QPushButton" name="btnImportRun"><property name="text"><string>インポート実行</string></property></widget></item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabRebuild">
+      <attribute name="title"><string>再作成</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutRebuild">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutRebuildCsv">
+         <item><widget class="QLineEdit" name="lineEditRebuildCsv"/></item>
+         <item><widget class="QPushButton" name="btnRebuildCsvBrowse"><property name="text"><string>参照</string></property></widget></item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutTemplate">
+         <item><widget class="QLineEdit" name="lineEditTemplate"/></item>
+         <item><widget class="QPushButton" name="btnTemplateBrowse"><property name="text"><string>参照</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="labelRebuildCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetRebuildCsvLayouts"/></item>
+       <item><widget class="QPushButton" name="btnRebuildReload"><property name="text"><string>再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelRebuildTargetLayouts"><property name="text"><string>再作成対象レイアウト</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetRebuildTargetLayouts"/></item>
+       <item><widget class="QPushButton" name="btnRebuildRun"><property name="text"><string>再作成実行</string></property></widget></item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item><widget class="QLabel" name="labelSummary"><property name="text"><string/></property></widget></item>
+   <item><widget class="QTextEdit" name="textEditLogs"/></item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
