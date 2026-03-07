@@ -16,7 +16,7 @@ from ..services.layout_export_service import LayoutExportService
 from ..services.layout_import_service import LayoutImportService
 from ..services.layout_rebuild_service import LayoutRebuildService
 from ..utils.logger import build_log
-from ..utils.qgis_layout_helpers import get_project_layout_names
+from ..utils.qgis_layout_helpers import get_project_layout_name_with_map_item_counts
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), "..", "ui", "main_dialog.ui"))
 
@@ -177,7 +177,7 @@ class MainDialog(QDialog, FORM_CLASS):
         """プロジェクトレイアウト一覧をUIへ反映する。
 
         概要:
-            現在のQGISプロジェクト状態からレイアウト名を再取得し、
+            現在のQGISプロジェクト状態からレイアウト名と地図アイテム数を再取得し、
             各タブの対象選択リストへ設定する。
 
         引数:
@@ -193,25 +193,26 @@ class MainDialog(QDialog, FORM_CLASS):
             >>> dialog.refresh_project_layout_lists()
         """
         try:
-            layout_names = get_project_layout_names()
+            layout_entries = get_project_layout_name_with_map_item_counts()
         except RuntimeError as exc:
             self._append_result_logs(
                 OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
             )
             return
-        self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_names)
-        self._set_items_with_checkboxes(self.listWidgetImportTargetLayouts, layout_names)
-        self._set_items_with_checkboxes(self.listWidgetRebuildTargetLayouts, layout_names)
+        self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_entries)
+        self._set_items_with_checkboxes(self.listWidgetImportTargetLayouts, layout_entries)
+        self._set_items_with_checkboxes(self.listWidgetRebuildTargetLayouts, layout_entries)
 
-    def _set_items_with_checkboxes(self, list_widget: QListWidget, items: list[str]) -> None:
+    def _set_items_with_checkboxes(self, list_widget: QListWidget, items: list[tuple[str, int]]) -> None:
         """チェックボックス付きリスト項目を再構築する。
 
         概要:
-            渡された文字列一覧を全消去後にチェックボックス項目として登録する。
+            渡されたレイアウト名と地図アイテム数の一覧を全消去後に
+            チェックボックス項目として登録する。
 
         引数:
             list_widget: 設定対象リスト。
-            items: 表示項目文字列一覧。
+            items: 表示項目一覧。要素は `(layout_name, map_item_count)`。
 
         戻り値:
             なし。
@@ -220,26 +221,29 @@ class MainDialog(QDialog, FORM_CLASS):
             なし。
 
         使用例:
-            >>> dialog._set_items_with_checkboxes(widget, ["A", "B"])
+            >>> dialog._set_items_with_checkboxes(widget, [("A", 2), ("B", 1)])
         """
         list_widget.clear()
-        for name in items:
-            item = QListWidgetItem(name)
+        for layout_name, map_item_count in items:
+            display_text = f"{layout_name} ({map_item_count})"
+            item = QListWidgetItem(display_text)
+            item.setData(Qt.UserRole, layout_name)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
             list_widget.addItem(item)
 
     def _get_checked_items(self, list_widget: QListWidget) -> list[str]:
-        """チェック済み項目の文字列一覧を返す。
+        """チェック済み項目のレイアウト名一覧を返す。
 
         概要:
-            リストウィジェット内のチェック状態を走査して選択値を収集する。
+            リストウィジェット内のチェック状態を走査し、
+            `Qt.UserRole` に保持した生のレイアウト名を収集する。
 
         引数:
             list_widget: 取得対象リスト。
 
         戻り値:
-            list[str]: チェック済み項目文字列一覧。
+            list[str]: チェック済みレイアウト名一覧。
 
         例外:
             なし。
@@ -251,7 +255,11 @@ class MainDialog(QDialog, FORM_CLASS):
         for index in range(list_widget.count()):
             item = list_widget.item(index)
             if item.checkState() == Qt.Checked:
-                checked.append(item.text())
+                raw_layout_name = item.data(Qt.UserRole)
+                if isinstance(raw_layout_name, str) and raw_layout_name:
+                    checked.append(raw_layout_name)
+                else:
+                    checked.append(item.text())
         return checked
 
     def _browse_export_csv(self) -> None:
@@ -368,7 +376,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._append_result_logs(result)
         if result.success:
             self._import_dataset = dataset
-            self._set_items_with_checkboxes(self.listWidgetImportCsvLayouts, dataset.get_layout_names())
+            self._set_items_with_checkboxes(self.listWidgetImportCsvLayouts, dataset.get_layout_name_with_counts())
 
     def _load_csv_for_rebuild(self, path: str) -> None:
         """再作成用CSVを読み込む。
@@ -392,7 +400,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._append_result_logs(result)
         if result.success:
             self._rebuild_dataset = dataset
-            self._set_items_with_checkboxes(self.listWidgetRebuildCsvLayouts, dataset.get_layout_names())
+            self._set_items_with_checkboxes(self.listWidgetRebuildCsvLayouts, dataset.get_layout_name_with_counts())
 
     def _run_export(self) -> None:
         """エクスポート処理を実行する。

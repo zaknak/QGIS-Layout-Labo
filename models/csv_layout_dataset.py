@@ -96,6 +96,51 @@ class CsvLayoutDataset:
         """
         return self.layouts.get(layout_name)
 
+    def get_layout_map_item_count(self, layout_name: str) -> int:
+        """指定レイアウトの地図アイテム数を返す。
+
+        概要:
+            指定したレイアウト名に対応する地図アイテム件数を返す。
+            該当レイアウトが存在しない場合は0を返す。
+
+        引数:
+            layout_name: 件数取得対象のレイアウト名。
+
+        戻り値:
+            int: 地図アイテム件数。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> count = dataset.get_layout_map_item_count("LayoutA")
+        """
+        layout = self.layouts.get(layout_name)
+        if layout is None:
+            return 0
+        return len(layout.map_items)
+
+    def get_layout_name_with_counts(self) -> list[tuple[str, int]]:
+        """レイアウト名と地図アイテム数の一覧を返す。
+
+        概要:
+            データセット内のレイアウトを名前昇順で走査し、
+            表示用にレイアウト名と地図アイテム件数の組を返す。
+
+        引数:
+            なし。
+
+        戻り値:
+            list[tuple[str, int]]: `[(layout_name, map_item_count), ...]` の一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> entries = dataset.get_layout_name_with_counts()
+        """
+        return [(layout_name, self.get_layout_map_item_count(layout_name)) for layout_name in self.get_layout_names()]
+
     def iter_layouts(self) -> list[LayoutRecord]:
         """レイアウト単位データ一覧を返す。
 

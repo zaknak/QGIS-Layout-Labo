@@ -38,6 +38,36 @@ def get_project_layout_names() -> list[str]:
         raise RuntimeError(f"レイアウト一覧の取得に失敗しました: {exc}") from exc
 
 
+def get_project_layout_name_with_map_item_counts() -> list[tuple[str, int]]:
+    """現在プロジェクトのレイアウト名と地図アイテム数を返す。
+
+    概要:
+        QGISプロジェクトから各レイアウトを取得し、
+        レイアウト名昇順で `(layout_name, map_item_count)` の一覧を返す。
+
+    引数:
+        なし。
+
+    戻り値:
+        list[tuple[str, int]]: レイアウト名と地図アイテム数の一覧。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> entries = get_project_layout_name_with_map_item_counts()
+    """
+    try:
+        manager = QgsProject.instance().layoutManager()
+        entries: list[tuple[str, int]] = []
+        for layout in manager.layouts():
+            map_item_count = len(get_map_items(layout))
+            entries.append((layout.name(), map_item_count))
+        return sorted(entries, key=lambda entry: entry[0])
+    except Exception as exc:
+        raise RuntimeError(f"レイアウト一覧の取得に失敗しました: {exc}") from exc
+
+
 def get_map_items(layout: object) -> list[QgsLayoutItemMap]:
     """レイアウト内の地図アイテム一覧を取得する。
 
