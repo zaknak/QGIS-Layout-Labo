@@ -14,7 +14,7 @@
      <widget class="QWidget" name="tabExport">
       <attribute name="title"><string>エクスポート</string></attribute>
       <layout class="QVBoxLayout" name="verticalLayoutExport">
-       <item><widget class="QPushButton" name="btnExportReload"><property name="text"><string>再読込</string></property></widget></item>
+       <item><widget class="QPushButton" name="btnExportReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetExportLayouts"/></item>
        <item><widget class="QLabel" name="labelExportCsvPath"><property name="text"><string>出力CSVファイル</string></property></widget></item>
        <item>
@@ -29,6 +29,7 @@
      <widget class="QWidget" name="tabImport">
       <attribute name="title"><string>インポート</string></attribute>
       <layout class="QVBoxLayout" name="verticalLayoutImport">
+       <item><widget class="QPushButton" name="btnImportReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
        <item><widget class="QLabel" name="labelImportCsvPath"><property name="text"><string>入力CSVファイル（エクスポート結果）</string></property></widget></item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayoutImportCsv">
@@ -38,7 +39,6 @@
        </item>
        <item><widget class="QLabel" name="labelImportCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetImportCsvLayouts"/></item>
-       <item><widget class="QPushButton" name="btnImportReload"><property name="text"><string>再読込</string></property></widget></item>
        <item><widget class="QLabel" name="labelImportTargetLayouts"><property name="text"><string>適用対象レイアウト</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetImportTargetLayouts"/></item>
        <item><widget class="QPushButton" name="btnImportRun"><property name="text"><string>インポート実行</string></property></widget></item>
@@ -47,6 +47,7 @@
      <widget class="QWidget" name="tabRebuild">
       <attribute name="title"><string>再作成</string></attribute>
       <layout class="QVBoxLayout" name="verticalLayoutRebuild">
+       <item><widget class="QPushButton" name="btnRebuildReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
        <item><widget class="QLabel" name="labelRebuildCsvPath"><property name="text"><string>入力CSVファイル（エクスポート結果）</string></property></widget></item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayoutRebuildCsv">
@@ -63,7 +64,6 @@
        </item>
        <item><widget class="QLabel" name="labelRebuildCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetRebuildCsvLayouts"/></item>
-       <item><widget class="QPushButton" name="btnRebuildReload"><property name="text"><string>再読込</string></property></widget></item>
        <item><widget class="QLabel" name="labelRebuildTargetLayouts"><property name="text"><string>再作成対象レイアウト</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetRebuildTargetLayouts"/></item>
        <item><widget class="QPushButton" name="btnRebuildRun"><property name="text"><string>再作成実行</string></property></widget></item>
@@ -78,3 +78,4 @@
  <resources/>
  <connections/>
 </ui>
+
