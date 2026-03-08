@@ -26,6 +26,7 @@ from ..services.layout_export_service import LayoutExportService
 from ..services.layout_import_service import LayoutImportService
 from ..services.layout_map_copy_service import LayoutMapCopyService
 from ..services.layout_rebuild_service import LayoutRebuildService
+from ..services.layout_z_order_service import LayoutZOrderService
 from ..utils.logger import build_log
 from ..utils.qgis_layout_helpers import (
     get_project_layer_names_in_tree_order,
@@ -57,7 +58,7 @@ class MainDialog(QDialog, FORM_CLASS):
         >>> dialog.prepare_for_show()
     """
 
-    def __init__(self, parent: object | None = None) -> None:
+    def __init__(self, parent: object | None = None, iface: object | None = None) -> None:
         """ダイアログ初期化を行う。
 
         概要:
@@ -65,6 +66,7 @@ class MainDialog(QDialog, FORM_CLASS):
 
         引数:
             parent: 親ウィジェット。
+            iface: QGISインターフェースオブジェクト。
 
         戻り値:
             なし。
@@ -77,6 +79,7 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         super().__init__(parent)
         self.setupUi(self)
+        self._iface = iface
 
         self._csv_service = CsvService()
         self._layout_export_service = LayoutExportService(csv_service=self._csv_service)
@@ -84,6 +87,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._layout_rebuild_service = LayoutRebuildService()
         self._layout_map_copy_service = LayoutMapCopyService()
         self._expression_builder_service = ExpressionBuilderService()
+        self._layout_z_order_service = LayoutZOrderService()
 
         self._import_dataset = CsvLayoutDataset()
         self._rebuild_dataset = CsvLayoutDataset()
@@ -149,6 +153,7 @@ class MainDialog(QDialog, FORM_CLASS):
             self.listWidgetExpressionAvailableLayers,
             self.listWidgetExpressionSelectedLayers,
             self.listWidgetExpressionTargetMaps,
+            self.listWidgetZOrderTargetLayouts,
         ):
             list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.checkMapCopyExtent.setChecked(True)
@@ -178,6 +183,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self.btnRebuildReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnMapCopyReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnExpressionReload.clicked.connect(self.refresh_project_layout_lists)
+        self.btnZOrderReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnExportBrowse.clicked.connect(self._browse_export_csv)
         self.btnImportBrowse.clicked.connect(self._browse_import_csv)
         self.btnRebuildCsvBrowse.clicked.connect(self._browse_rebuild_csv)
@@ -197,6 +203,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self.btnExpressionMoveDown.clicked.connect(self._move_expression_layers_down)
         self.btnExpressionBuild.clicked.connect(self._build_expression_preview)
         self.btnExpressionApply.clicked.connect(self._run_expression_apply)
+        self.btnZOrderRun.clicked.connect(self._run_z_order_reassign)
 
     def _on_tab_changed(self, _index: int) -> None:
         """タブ切替イベント時に一覧再読込を行う。
@@ -248,6 +255,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetImportTargetLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetRebuildTargetLayouts, layout_entries)
+        self._set_items_with_checkboxes(self.listWidgetZOrderTargetLayouts, layout_entries)
         self._set_layout_combo_items(self.comboMapCopySourceLayout, layout_entries)
         self._set_layout_combo_items(self.comboMapCopyTargetLayout, layout_entries)
         self._set_layout_combo_items(self.comboExpressionTargetLayout, layout_entries)
@@ -1297,6 +1305,116 @@ class MainDialog(QDialog, FORM_CLASS):
         self._append_result_logs(result)
         self.refresh_project_layout_lists()
 
+    def _run_z_order_reassign(self) -> None:
+        """zvalue再設定処理を実行する。
+
+        概要:
+            入力検証後に対象レイアウトへページ考慮zvalue再採番を適用する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._run_z_order_reassign()
+        """
+        selected_targets = self._get_checked_items(self.listWidgetZOrderTargetLayouts)
+        validation = self._validate_z_order_input(selected_targets)
+        if validation is not None:
+            self._append_result_logs(validation)
+            return
+
+        result = self._layout_z_order_service.reorder_by_page(selected_targets)
+        self._append_result_logs(result)
+        if result.success:
+            self._refresh_open_layout_designers(selected_targets)
+        self.refresh_project_layout_lists()
+
+    def _refresh_open_layout_designers(self, target_layout_names: list[str]) -> None:
+        """開いているレイアウト編集画面の表示更新を行う。
+
+        概要:
+            開いている Layout Designer から対象レイアウトを特定し、
+            レイアウトとビューの再描画を実施してアイテムパネル表示反映を促す。
+
+        引数:
+            target_layout_names: 更新対象レイアウト名一覧。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._refresh_open_layout_designers(["LayoutA"])
+        """
+        if self._iface is None:
+            return
+
+        try:
+            open_designers = self._iface.openLayoutDesigners()
+        except Exception as exc:
+            self._append_result_logs(
+                OperationResult(
+                    success=False,
+                    has_warning=True,
+                    logs=[build_log(LogLevel.WARNING, f"レイアウト編集画面更新に失敗しました: {exc}")],
+                )
+            )
+            return
+
+        target_layout_name_set = set(target_layout_names)
+        refreshed_count = 0
+        for designer in open_designers:
+            try:
+                designer_layout = designer.layout()
+            except Exception:
+                continue
+            if designer_layout is None:
+                continue
+            try:
+                layout_name = designer_layout.name()
+            except Exception:
+                continue
+            if layout_name not in target_layout_name_set:
+                continue
+            try:
+                designer_layout.refresh()
+                view = designer.view()
+                if view is not None:
+                    viewport = view.viewport()
+                    if viewport is not None:
+                        viewport.update()
+                refreshed_count += 1
+            except Exception as exc:
+                self._append_result_logs(
+                    OperationResult(
+                        success=False,
+                        has_warning=True,
+                        logs=[
+                            build_log(
+                                LogLevel.WARNING,
+                                f"レイアウト編集画面の再描画に失敗しました: {exc}",
+                                layout_name=layout_name,
+                            )
+                        ],
+                    )
+                )
+
+        if refreshed_count > 0:
+            self._append_result_logs(
+                OperationResult(
+                    success=True,
+                    logs=[build_log(LogLevel.INFO, f"レイアウト編集画面を更新しました: {refreshed_count}件")],
+                )
+            )
+
     def _validate_export_input(self, layout_names: list[str], csv_path: str) -> OperationResult | None:
         """エクスポート入力の検証を行う。
 
@@ -1445,6 +1563,28 @@ class MainDialog(QDialog, FORM_CLASS):
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先レイアウト未選択です")])
         if not target_selections:
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先地図アイテム未選択です")])
+        return None
+
+    def _validate_z_order_input(self, target_layouts: list[str]) -> OperationResult | None:
+        """zvalue再設定入力の検証を行う。
+
+        概要:
+            対象レイアウト選択の必須チェックを行う。
+
+        引数:
+            target_layouts: 処理対象レイアウト名一覧。
+
+        戻り値:
+            OperationResult | None: エラー時は結果オブジェクト、問題ない場合None。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> err = dialog._validate_z_order_input(["LayoutA"])
+        """
+        if not target_layouts:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "zvalue再設定対象レイアウト未選択です")])
         return None
 
     def _append_result_logs(self, result: OperationResult) -> None:
