@@ -21,12 +21,14 @@ from ..models.map_copy_snapshot import MapCopySnapshot
 from ..models.map_item_selection import MapItemSelection
 from ..models.operation_result import LogLevel, OperationResult
 from ..services.csv_service import CsvService
+from ..services.expression_builder_service import ExpressionBuilderService
 from ..services.layout_export_service import LayoutExportService
 from ..services.layout_import_service import LayoutImportService
 from ..services.layout_map_copy_service import LayoutMapCopyService
 from ..services.layout_rebuild_service import LayoutRebuildService
 from ..utils.logger import build_log
 from ..utils.qgis_layout_helpers import (
+    get_project_layer_names_in_tree_order,
     get_layout_map_item_selections,
     get_project_layout_name_with_map_item_counts,
 )
@@ -81,6 +83,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._layout_import_service = LayoutImportService()
         self._layout_rebuild_service = LayoutRebuildService()
         self._layout_map_copy_service = LayoutMapCopyService()
+        self._expression_builder_service = ExpressionBuilderService()
 
         self._import_dataset = CsvLayoutDataset()
         self._rebuild_dataset = CsvLayoutDataset()
@@ -88,6 +91,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._source_map_selections: list[MapItemSelection] = []
         self._target_map_selections: list[MapItemSelection] = []
         self._map_copy_snapshot: MapCopySnapshot | None = None
+        self._expression_target_map_selections: list[MapItemSelection] = []
 
         self._configure_widgets()
         self._connect_signals()
@@ -132,7 +136,9 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         self.textEditLogs.setReadOnly(True)
         self.textEditMapCopySnapshot.setReadOnly(True)
+        self.textEditExpressionPreview.setReadOnly(True)
         self.labelSummary.setText("")
+        self.textEditExpressionPreview.setPlainText("未生成")
         for list_widget in (
             self.listWidgetExportLayouts,
             self.listWidgetImportCsvLayouts,
@@ -140,6 +146,9 @@ class MainDialog(QDialog, FORM_CLASS):
             self.listWidgetRebuildCsvLayouts,
             self.listWidgetRebuildTargetLayouts,
             self.listWidgetMapCopyTargets,
+            self.listWidgetExpressionAvailableLayers,
+            self.listWidgetExpressionSelectedLayers,
+            self.listWidgetExpressionTargetMaps,
         ):
             list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
         self.checkMapCopyExtent.setChecked(True)
@@ -168,6 +177,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self.btnImportReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnRebuildReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnMapCopyReload.clicked.connect(self.refresh_project_layout_lists)
+        self.btnExpressionReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnExportBrowse.clicked.connect(self._browse_export_csv)
         self.btnImportBrowse.clicked.connect(self._browse_import_csv)
         self.btnRebuildCsvBrowse.clicked.connect(self._browse_rebuild_csv)
@@ -180,6 +190,13 @@ class MainDialog(QDialog, FORM_CLASS):
         self.comboMapCopyTargetLayout.currentIndexChanged.connect(self._on_map_copy_target_layout_changed)
         self.btnMapCopyCapture.clicked.connect(self._capture_map_copy_snapshot)
         self.btnMapCopyRun.clicked.connect(self._run_map_copy)
+        self.comboExpressionTargetLayout.currentIndexChanged.connect(self._on_expression_target_layout_changed)
+        self.btnExpressionAddLayer.clicked.connect(self._add_expression_layers)
+        self.btnExpressionRemoveLayer.clicked.connect(self._remove_expression_layers)
+        self.btnExpressionMoveUp.clicked.connect(self._move_expression_layers_up)
+        self.btnExpressionMoveDown.clicked.connect(self._move_expression_layers_down)
+        self.btnExpressionBuild.clicked.connect(self._build_expression_preview)
+        self.btnExpressionApply.clicked.connect(self._run_expression_apply)
 
     def _on_tab_changed(self, _index: int) -> None:
         """タブ切替イベント時に一覧再読込を行う。
@@ -233,8 +250,11 @@ class MainDialog(QDialog, FORM_CLASS):
         self._set_items_with_checkboxes(self.listWidgetRebuildTargetLayouts, layout_entries)
         self._set_layout_combo_items(self.comboMapCopySourceLayout, layout_entries)
         self._set_layout_combo_items(self.comboMapCopyTargetLayout, layout_entries)
+        self._set_layout_combo_items(self.comboExpressionTargetLayout, layout_entries)
         self._reload_map_copy_source_map_items()
         self._reload_map_copy_target_map_items()
+        self._reload_expression_available_layers()
+        self._reload_expression_target_map_items()
 
     def _set_items_with_checkboxes(self, list_widget: QListWidget, items: list[tuple[str, int]]) -> None:
         """チェックボックス付きリスト項目を再構築する。
@@ -597,6 +617,302 @@ class MainDialog(QDialog, FORM_CLASS):
                 item.setCheckState(Qt.Unchecked)
             self.listWidgetMapCopyTargets.addItem(item)
 
+    def _reload_expression_available_layers(self) -> None:
+        """expressionビルダの利用可能レイヤ一覧を再構築する。
+
+        概要:
+            現在プロジェクトのレイヤをレイヤパネル順で取得し、
+            expression対象へ未追加のものを一覧へ設定する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._reload_expression_available_layers()
+        """
+        selected_layer_names = self._get_expression_selected_layer_names()
+        try:
+            layer_names = get_project_layer_names_in_tree_order()
+        except RuntimeError as exc:
+            self._append_result_logs(
+                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
+            )
+            return
+        valid_selected_layer_names = [layer_name for layer_name in selected_layer_names if layer_name in layer_names]
+        if valid_selected_layer_names != selected_layer_names:
+            self.listWidgetExpressionSelectedLayers.clear()
+            self.listWidgetExpressionSelectedLayers.addItems(valid_selected_layer_names)
+            self.textEditExpressionPreview.setPlainText("未生成")
+
+        self.listWidgetExpressionAvailableLayers.clear()
+        for layer_name in layer_names:
+            if layer_name in valid_selected_layer_names:
+                continue
+            self.listWidgetExpressionAvailableLayers.addItem(layer_name)
+
+    def _reload_expression_target_map_items(self) -> None:
+        """expression適用先地図一覧を再構築する。
+
+        概要:
+            適用先レイアウトに属する地図アイテムを取得し、
+            チェックボックス付き複数選択リストへ反映する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._reload_expression_target_map_items()
+        """
+        layout_name = self._get_selected_layout_name(self.comboExpressionTargetLayout)
+        previous_checked_keys = {
+            self._selection_key(selection) for selection in self._get_checked_expression_target_map_selections()
+        }
+        try:
+            self._expression_target_map_selections = get_layout_map_item_selections(layout_name) if layout_name else []
+        except RuntimeError as exc:
+            self._expression_target_map_selections = []
+            self._append_result_logs(
+                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
+            )
+
+        self.listWidgetExpressionTargetMaps.clear()
+        for index, selection in enumerate(self._expression_target_map_selections):
+            item = QListWidgetItem(selection.display_name)
+            item.setData(Qt.UserRole, index)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            if self._selection_key(selection) in previous_checked_keys:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            self.listWidgetExpressionTargetMaps.addItem(item)
+
+    def _on_expression_target_layout_changed(self, _index: int) -> None:
+        """expression適用先レイアウト変更時の処理を行う。
+
+        概要:
+            適用先レイアウト変更時に適用先地図一覧を再取得する。
+
+        引数:
+            _index: 変更後インデックス。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._on_expression_target_layout_changed(0)
+        """
+        self._reload_expression_target_map_items()
+
+    def _get_expression_selected_layer_names(self) -> list[str]:
+        """expression対象レイヤの現在順を取得する。
+
+        概要:
+            expression対象レイヤ一覧の上から順にレイヤ名を返す。
+
+        引数:
+            なし。
+
+        戻り値:
+            list[str]: レイヤ名一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> names = dialog._get_expression_selected_layer_names()
+        """
+        names: list[str] = []
+        for index in range(self.listWidgetExpressionSelectedLayers.count()):
+            names.append(self.listWidgetExpressionSelectedLayers.item(index).text())
+        return names
+
+    def _get_checked_expression_target_map_selections(self) -> list[MapItemSelection]:
+        """expression適用先地図のチェック済み選択を返す。
+
+        概要:
+            適用先地図一覧のチェック状態を走査し、
+            対象選択情報を返す。
+
+        引数:
+            なし。
+
+        戻り値:
+            list[MapItemSelection]: チェック済み地図選択情報一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> selections = dialog._get_checked_expression_target_map_selections()
+        """
+        checked: list[MapItemSelection] = []
+        for index in range(self.listWidgetExpressionTargetMaps.count()):
+            item = self.listWidgetExpressionTargetMaps.item(index)
+            if item.checkState() != Qt.Checked:
+                continue
+            data = item.data(Qt.UserRole)
+            if not isinstance(data, int):
+                continue
+            if data < 0 or data >= len(self._expression_target_map_selections):
+                continue
+            checked.append(self._expression_target_map_selections[data])
+        return checked
+
+    def _add_expression_layers(self) -> None:
+        """利用可能レイヤをexpression対象へ追加する。
+
+        概要:
+            利用可能レイヤ一覧で選択中のレイヤを順序維持で
+            expression対象一覧へ移動し、プレビューを未生成状態へ戻す。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._add_expression_layers()
+        """
+        selected_rows = sorted({index.row() for index in self.listWidgetExpressionAvailableLayers.selectedIndexes()}, reverse=True)
+        moved_items: list[QListWidgetItem] = []
+        for row in selected_rows:
+            moved_items.append(self.listWidgetExpressionAvailableLayers.takeItem(row))
+        for item in reversed(moved_items):
+            self.listWidgetExpressionSelectedLayers.addItem(item)
+        if moved_items:
+            self._reload_expression_available_layers()
+            self.textEditExpressionPreview.setPlainText("未生成")
+
+    def _remove_expression_layers(self) -> None:
+        """expression対象レイヤを利用可能一覧へ戻す。
+
+        概要:
+            expression対象一覧で選択中のレイヤを除去し、
+            利用可能一覧をレイヤパネル順で再構築する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._remove_expression_layers()
+        """
+        selected_rows = sorted({index.row() for index in self.listWidgetExpressionSelectedLayers.selectedIndexes()}, reverse=True)
+        for row in selected_rows:
+            self.listWidgetExpressionSelectedLayers.takeItem(row)
+        if selected_rows:
+            self._reload_expression_available_layers()
+            self.textEditExpressionPreview.setPlainText("未生成")
+
+    def _move_expression_layers_up(self) -> None:
+        """expression対象レイヤを上へ移動する。
+
+        概要:
+            選択中レイヤを上方向へ1段移動し、相対順を維持する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._move_expression_layers_up()
+        """
+        selected_rows = sorted({index.row() for index in self.listWidgetExpressionSelectedLayers.selectedIndexes()})
+        moved = False
+        for row in selected_rows:
+            if row <= 0:
+                continue
+            item = self.listWidgetExpressionSelectedLayers.takeItem(row)
+            self.listWidgetExpressionSelectedLayers.insertItem(row - 1, item)
+            item.setSelected(True)
+            moved = True
+        if moved:
+            self.textEditExpressionPreview.setPlainText("未生成")
+
+    def _move_expression_layers_down(self) -> None:
+        """expression対象レイヤを下へ移動する。
+
+        概要:
+            選択中レイヤを下方向へ1段移動し、相対順を維持する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._move_expression_layers_down()
+        """
+        selected_rows = sorted({index.row() for index in self.listWidgetExpressionSelectedLayers.selectedIndexes()}, reverse=True)
+        moved = False
+        for row in selected_rows:
+            if row >= self.listWidgetExpressionSelectedLayers.count() - 1:
+                continue
+            item = self.listWidgetExpressionSelectedLayers.takeItem(row)
+            self.listWidgetExpressionSelectedLayers.insertItem(row + 1, item)
+            item.setSelected(True)
+            moved = True
+        if moved:
+            self.textEditExpressionPreview.setPlainText("未生成")
+
+    def _build_expression_preview(self) -> None:
+        """expressionプレビューを生成する。
+
+        概要:
+            expression対象レイヤの現在順からexpressionを構築し、
+            プレビュー欄へ表示する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._build_expression_preview()
+        """
+        layer_names = self._get_expression_selected_layer_names()
+        result, expression = self._expression_builder_service.build_expression(layer_names)
+        self._append_result_logs(result)
+        if result.success and expression is not None:
+            self.textEditExpressionPreview.setPlainText(expression)
+
     def _on_map_copy_source_layout_changed(self, _index: int) -> None:
         """元レイアウト変更時の処理を行う。
 
@@ -939,6 +1255,48 @@ class MainDialog(QDialog, FORM_CLASS):
         self._append_result_logs(result)
         self.refresh_project_layout_lists()
 
+    def _run_expression_apply(self) -> None:
+        """expression適用処理を実行する。
+
+        概要:
+            生成済みexpressionと適用先選択を検証し、
+            サービス経由で複数地図アイテムへ一括適用する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._run_expression_apply()
+        """
+        expression = self.textEditExpressionPreview.toPlainText().strip()
+        if expression == "未生成":
+            expression = ""
+        target_layout_name = self._get_selected_layout_name(self.comboExpressionTargetLayout)
+        target_selections = self._get_checked_expression_target_map_selections()
+
+        validation = self._validate_expression_apply_input(
+            expression=expression,
+            target_layout_name=target_layout_name,
+            target_selections=target_selections,
+        )
+        if validation is not None:
+            self._append_result_logs(validation)
+            return
+
+        result = self._expression_builder_service.apply_expression_to_maps(
+            expression=expression,
+            target_layout_name=target_layout_name,
+            target_selections=target_selections,
+        )
+        self._append_result_logs(result)
+        self.refresh_project_layout_lists()
+
     def _validate_export_input(self, layout_names: list[str], csv_path: str) -> OperationResult | None:
         """エクスポート入力の検証を行う。
 
@@ -1054,6 +1412,39 @@ class MainDialog(QDialog, FORM_CLASS):
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "コピー先地図アイテム未選択です")])
         if not apply_extent and not apply_expression:
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "コピー対象（EXTENT / expression）未選択です")])
+        return None
+
+    def _validate_expression_apply_input(
+        self,
+        expression: str,
+        target_layout_name: str,
+        target_selections: list[MapItemSelection],
+    ) -> OperationResult | None:
+        """expression適用入力の検証を行う。
+
+        概要:
+            expression、適用先レイアウト、適用先地図選択の必須チェックを行う。
+
+        引数:
+            expression: 適用するexpression文字列。
+            target_layout_name: 適用先レイアウト名。
+            target_selections: 適用先地図選択情報。
+
+        戻り値:
+            OperationResult | None: エラー時は結果オブジェクト、問題ない場合None。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> err = dialog._validate_expression_apply_input("'A|B'", "LayoutA", selections)
+        """
+        if not expression:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用するexpressionがありません")])
+        if not target_layout_name:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先レイアウト未選択です")])
+        if not target_selections:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先地図アイテム未選択です")])
         return None
 
     def _append_result_logs(self, result: OperationResult) -> None:

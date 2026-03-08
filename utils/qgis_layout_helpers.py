@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from qgis.core import (
     QgsLayoutItemMap,
+    QgsLayerTreeLayer,
     QgsLayoutObject,
     QgsProject,
     QgsProperty,
@@ -68,6 +69,39 @@ def get_project_layout_name_with_map_item_counts() -> list[tuple[str, int]]:
         return sorted(entries, key=lambda entry: entry[0])
     except Exception as exc:
         raise RuntimeError(f"レイアウト一覧の取得に失敗しました: {exc}") from exc
+
+
+def get_project_layer_names_in_tree_order() -> list[str]:
+    """レイヤパネル順のレイヤ名一覧を返す。
+
+    概要:
+        QGISプロジェクトのレイヤツリーから表示順でレイヤ名を取得する。
+
+    引数:
+        なし。
+
+    戻り値:
+        list[str]: レイヤパネル順のレイヤ名一覧。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> names = get_project_layer_names_in_tree_order()
+    """
+    try:
+        root = QgsProject.instance().layerTreeRoot()
+        names: list[str] = []
+        for layer_node in root.findLayers():
+            if not isinstance(layer_node, QgsLayerTreeLayer):
+                continue
+            layer = layer_node.layer()
+            if layer is None:
+                continue
+            names.append(layer.name())
+        return names
+    except Exception as exc:
+        raise RuntimeError(f"レイヤ一覧の取得に失敗しました: {exc}") from exc
 
 
 def get_map_items(layout: object) -> list[QgsLayoutItemMap]:
