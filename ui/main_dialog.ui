@@ -120,7 +120,16 @@
        <item><widget class="QComboBox" name="comboExpressionTargetLayout"/></item>
        <item><widget class="QLabel" name="labelExpressionTargetMaps"><property name="text"><string>適用先地図アイテム（複数選択可）</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetExpressionTargetMaps"/></item>
-       <item><widget class="QPushButton" name="btnExpressionApply"><property name="text"><string>expression適用</string></property></widget></item>
+      <item><widget class="QPushButton" name="btnExpressionApply"><property name="text"><string>expression適用</string></property></widget></item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabZOrder">
+      <attribute name="title"><string>zvalue再設定</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutZOrder">
+       <item><widget class="QPushButton" name="btnZOrderReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelZOrderTargetLayouts"><property name="text"><string>zvalue再設定対象レイアウト</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetZOrderTargetLayouts"/></item>
+       <item><widget class="QPushButton" name="btnZOrderRun"><property name="text"><string>ページ考慮zvalue再設定を実行</string></property></widget></item>
       </layout>
      </widget>
     </widget>

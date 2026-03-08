@@ -121,7 +121,7 @@ class LayoutLaboPlugin:
             >>> plugin.run()
         """
         if self.dialog is None:
-            self.dialog = MainDialog(parent=self.iface.mainWindow())
+            self.dialog = MainDialog(parent=self.iface.mainWindow(), iface=self.iface)
         self.dialog.prepare_for_show()
         self.dialog.show()
         self.dialog.raise_()
