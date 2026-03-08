@@ -1,8 +1,8 @@
 [general]
-name=QGIS Layout Map Transfer Plugin
+name=Layout Labo
 qgisMinimumVersion=3.4
 description=Export/import/rebuild layout map extents and expressions via CSV.
-version=0.1.0
+version=0.1.1
 author=Codex
 email=codex@example.com
 about=Transfer map extent and dataDefinedMapLayers.expression between layouts.

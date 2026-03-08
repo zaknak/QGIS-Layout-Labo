@@ -1,4 +1,4 @@
-# QGIS Layout Map Transfer Plugin - Requirements
+# Layout Labo - Requirements
 
 ## 1. 概要
 
@@ -1276,3 +1276,30 @@ expressionは、expression対象レイヤ一覧の上から順にレイヤ名を
 - `INFO`: expression生成完了、適用完了
 - `WARNING`: 一部地図アイテム不一致など継続可能異常
 - `ERROR`: 入力不備、API失敗など処理続行不能異常
+
+---
+
+## 28. プラグイン名称
+
+### 28.1 正式名称
+
+本プラグインの正式名称は **Layout Labo** とする。
+
+UI、メニュー、メタデータ、README、要件書における名称は
+`Layout Labo` へ統一する。
+
+### 28.2 内部識別子の方針
+
+表示名変更にあわせ、プラグイン本体クラス名は
+`LayoutLaboPlugin` を使用する。
+
+`classFactory(iface)` の契約は維持し、返却インスタンスのみ
+新クラス名へ追従する。
+
+### 28.3 互換性維持で据え置く項目
+
+本改名では次を変更しない。
+
+- プラグインフォルダ名
+- resources prefix（`/plugins/layout_map_transfer`）
+- 既存サービス/モジュールのファイル名
