@@ -6,7 +6,7 @@
    <rect><x>0</x><y>0</y><width>980</width><height>720</height></rect>
   </property>
   <property name="windowTitle">
-   <string>Layout Map Transfer</string>
+   <string>Layout Labo</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayoutRoot">
    <item>

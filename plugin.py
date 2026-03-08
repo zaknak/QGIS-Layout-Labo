@@ -12,7 +12,7 @@ from qgis.PyQt.QtWidgets import QAction
 from .dialogs.main_dialog import MainDialog
 
 
-class LayoutMapTransferPlugin:
+class LayoutLaboPlugin:
     """QGISプラグイン本体クラス。
 
     概要:
@@ -29,7 +29,7 @@ class LayoutMapTransferPlugin:
         なし。
 
     使用例:
-        >>> plugin = LayoutMapTransferPlugin(iface)
+        >>> plugin = LayoutLaboPlugin(iface)
         >>> plugin.initGui()
     """
 
@@ -49,7 +49,7 @@ class LayoutMapTransferPlugin:
             なし。
 
         使用例:
-            >>> plugin = LayoutMapTransferPlugin(iface)
+            >>> plugin = LayoutLaboPlugin(iface)
         """
         self.iface = iface
         self.action: Optional[QAction] = None
@@ -74,10 +74,10 @@ class LayoutMapTransferPlugin:
             >>> plugin.initGui()
         """
         icon_path: str = os.path.join(os.path.dirname(__file__), "icon.png")
-        self.action = QAction(QIcon(icon_path), "Layout Map Transfer", self.iface.mainWindow())
+        self.action = QAction(QIcon(icon_path), "Layout Labo", self.iface.mainWindow())
         self.action.triggered.connect(self.run)
         self.iface.addToolBarIcon(self.action)
-        self.iface.addPluginToMenu("Layout Map Transfer", self.action)
+        self.iface.addPluginToMenu("Layout Labo", self.action)
 
     def unload(self) -> None:
         """QGIS GUIからアクションを解除する。
@@ -99,7 +99,7 @@ class LayoutMapTransferPlugin:
         """
         if self.action is None:
             return
-        self.iface.removePluginMenu("Layout Map Transfer", self.action)
+        self.iface.removePluginMenu("Layout Labo", self.action)
         self.iface.removeToolBarIcon(self.action)
 
     def run(self) -> None:

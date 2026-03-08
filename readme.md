@@ -1,4 +1,4 @@
-# QGIS Layout Map Transfer Plugin
+# Layout Labo
 
 ## 概要
 
