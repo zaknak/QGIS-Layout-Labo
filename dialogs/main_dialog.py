@@ -23,16 +23,13 @@ from ..models.operation_result import LogLevel, OperationResult
 from ..services.csv_service import CsvService
 from ..services.expression_builder_service import ExpressionBuilderService
 from ..services.layout_export_service import LayoutExportService
+from ..services.layout_designer_service import LayoutDesignerService
 from ..services.layout_import_service import LayoutImportService
 from ..services.layout_map_copy_service import LayoutMapCopyService
+from ..services.project_query_service import ProjectQueryService
 from ..services.layout_rebuild_service import LayoutRebuildService
 from ..services.layout_z_order_service import LayoutZOrderService
 from ..utils.logger import build_log
-from ..utils.qgis_layout_helpers import (
-    get_project_layer_names_in_tree_order,
-    get_layout_map_item_selections,
-    get_project_layout_name_with_map_item_counts,
-)
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), "..", "ui", "main_dialog.ui"))
 
@@ -88,6 +85,8 @@ class MainDialog(QDialog, FORM_CLASS):
         self._layout_map_copy_service = LayoutMapCopyService()
         self._expression_builder_service = ExpressionBuilderService()
         self._layout_z_order_service = LayoutZOrderService()
+        self._project_query_service = ProjectQueryService()
+        self._layout_designer_service = LayoutDesignerService()
 
         self._import_dataset = CsvLayoutDataset()
         self._rebuild_dataset = CsvLayoutDataset()
@@ -244,12 +243,9 @@ class MainDialog(QDialog, FORM_CLASS):
         使用例:
             >>> dialog.refresh_project_layout_lists()
         """
-        try:
-            layout_entries = get_project_layout_name_with_map_item_counts()
-        except RuntimeError as exc:
-            self._append_result_logs(
-                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
-            )
+        query_result, layout_entries = self._project_query_service.load_layout_name_with_map_item_counts()
+        if not query_result.success:
+            self._append_result_logs(query_result)
             return
 
         self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_entries)
@@ -562,13 +558,12 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         layout_name = self._get_selected_layout_name(self.comboMapCopySourceLayout)
         previous_selection = self._get_selected_source_map_selection()
-        try:
-            self._source_map_selections = get_layout_map_item_selections(layout_name) if layout_name else []
-        except RuntimeError as exc:
+        query_result, selections = self._project_query_service.load_map_item_selections(layout_name)
+        if not query_result.success:
             self._source_map_selections = []
-            self._append_result_logs(
-                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
-            )
+            self._append_result_logs(query_result)
+        else:
+            self._source_map_selections = selections
 
         previous_key = self._selection_key(previous_selection) if previous_selection is not None else None
         self.comboMapCopySourceMap.blockSignals(True)
@@ -606,13 +601,12 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         layout_name = self._get_selected_layout_name(self.comboMapCopyTargetLayout)
         previous_checked_keys = {self._selection_key(selection) for selection in self._get_checked_target_map_selections()}
-        try:
-            self._target_map_selections = get_layout_map_item_selections(layout_name) if layout_name else []
-        except RuntimeError as exc:
+        query_result, selections = self._project_query_service.load_map_item_selections(layout_name)
+        if not query_result.success:
             self._target_map_selections = []
-            self._append_result_logs(
-                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
-            )
+            self._append_result_logs(query_result)
+        else:
+            self._target_map_selections = selections
 
         self.listWidgetMapCopyTargets.clear()
         for index, selection in enumerate(self._target_map_selections):
@@ -645,12 +639,9 @@ class MainDialog(QDialog, FORM_CLASS):
             >>> dialog._reload_expression_available_layers()
         """
         selected_layer_names = self._get_expression_selected_layer_names()
-        try:
-            layer_names = get_project_layer_names_in_tree_order()
-        except RuntimeError as exc:
-            self._append_result_logs(
-                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
-            )
+        query_result, layer_names = self._project_query_service.load_layer_names_in_tree_order()
+        if not query_result.success:
+            self._append_result_logs(query_result)
             return
         valid_selected_layer_names = [layer_name for layer_name in selected_layer_names if layer_name in layer_names]
         if valid_selected_layer_names != selected_layer_names:
@@ -687,13 +678,12 @@ class MainDialog(QDialog, FORM_CLASS):
         previous_checked_keys = {
             self._selection_key(selection) for selection in self._get_checked_expression_target_map_selections()
         }
-        try:
-            self._expression_target_map_selections = get_layout_map_item_selections(layout_name) if layout_name else []
-        except RuntimeError as exc:
+        query_result, selections = self._project_query_service.load_map_item_selections(layout_name)
+        if not query_result.success:
             self._expression_target_map_selections = []
-            self._append_result_logs(
-                OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, str(exc))])
-            )
+            self._append_result_logs(query_result)
+        else:
+            self._expression_target_map_selections = selections
 
         self.listWidgetExpressionTargetMaps.clear()
         for index, selection in enumerate(self._expression_target_map_selections):
@@ -1354,66 +1344,9 @@ class MainDialog(QDialog, FORM_CLASS):
         使用例:
             >>> dialog._refresh_open_layout_designers(["LayoutA"])
         """
-        if self._iface is None:
-            return
-
-        try:
-            open_designers = self._iface.openLayoutDesigners()
-        except Exception as exc:
-            self._append_result_logs(
-                OperationResult(
-                    success=False,
-                    has_warning=True,
-                    logs=[build_log(LogLevel.WARNING, f"レイアウト編集画面更新に失敗しました: {exc}")],
-                )
-            )
-            return
-
-        target_layout_name_set = set(target_layout_names)
-        refreshed_count = 0
-        for designer in open_designers:
-            try:
-                designer_layout = designer.layout()
-            except Exception:
-                continue
-            if designer_layout is None:
-                continue
-            try:
-                layout_name = designer_layout.name()
-            except Exception:
-                continue
-            if layout_name not in target_layout_name_set:
-                continue
-            try:
-                designer_layout.refresh()
-                view = designer.view()
-                if view is not None:
-                    viewport = view.viewport()
-                    if viewport is not None:
-                        viewport.update()
-                refreshed_count += 1
-            except Exception as exc:
-                self._append_result_logs(
-                    OperationResult(
-                        success=False,
-                        has_warning=True,
-                        logs=[
-                            build_log(
-                                LogLevel.WARNING,
-                                f"レイアウト編集画面の再描画に失敗しました: {exc}",
-                                layout_name=layout_name,
-                            )
-                        ],
-                    )
-                )
-
-        if refreshed_count > 0:
-            self._append_result_logs(
-                OperationResult(
-                    success=True,
-                    logs=[build_log(LogLevel.INFO, f"レイアウト編集画面を更新しました: {refreshed_count}件")],
-                )
-            )
+        result = self._layout_designer_service.refresh_open_designers(self._iface, target_layout_names)
+        if result.logs:
+            self._append_result_logs(result)
 
     def _validate_export_input(self, layout_names: list[str], csv_path: str) -> OperationResult | None:
         """エクスポート入力の検証を行う。
