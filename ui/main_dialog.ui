@@ -90,7 +90,37 @@
          <item><widget class="QCheckBox" name="checkMapCopyExpression"><property name="text"><string>expressionをコピー</string></property></widget></item>
         </layout>
        </item>
-       <item><widget class="QPushButton" name="btnMapCopyRun"><property name="text"><string>コピー実施</string></property></widget></item>
+      <item><widget class="QPushButton" name="btnMapCopyRun"><property name="text"><string>コピー実施</string></property></widget></item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabExpressionBuilder">
+      <attribute name="title"><string>expressionビルダ</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutExpressionBuilder">
+       <item><widget class="QPushButton" name="btnExpressionReload"><property name="text"><string>レイアウト/レイヤ再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelExpressionAvailableLayers"><property name="text"><string>利用可能レイヤ（レイヤパネル順）</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetExpressionAvailableLayers"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutExpressionSelectButtons">
+         <item><widget class="QPushButton" name="btnExpressionAddLayer"><property name="text"><string>追加 ↓</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnExpressionRemoveLayer"><property name="text"><string>除去 ↑</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="labelExpressionSelectedLayers"><property name="text"><string>expression対象レイヤ（上から順に連結）</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetExpressionSelectedLayers"/></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutExpressionOrderButtons">
+         <item><widget class="QPushButton" name="btnExpressionMoveUp"><property name="text"><string>上へ</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnExpressionMoveDown"><property name="text"><string>下へ</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnExpressionBuild"><property name="text"><string>expression生成</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="labelExpressionPreview"><property name="text"><string>生成expression</string></property></widget></item>
+       <item><widget class="QTextEdit" name="textEditExpressionPreview"/></item>
+       <item><widget class="QLabel" name="labelExpressionTargetLayout"><property name="text"><string>適用先レイアウト</string></property></widget></item>
+       <item><widget class="QComboBox" name="comboExpressionTargetLayout"/></item>
+       <item><widget class="QLabel" name="labelExpressionTargetMaps"><property name="text"><string>適用先地図アイテム（複数選択可）</string></property></widget></item>
+       <item><widget class="QListWidget" name="listWidgetExpressionTargetMaps"/></item>
+       <item><widget class="QPushButton" name="btnExpressionApply"><property name="text"><string>expression適用</string></property></widget></item>
       </layout>
      </widget>
     </widget>
