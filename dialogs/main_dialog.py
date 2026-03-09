@@ -147,7 +147,6 @@ class MainDialog(QDialog, FORM_CLASS):
             self.listWidgetImportCsvLayouts,
             self.listWidgetImportTargetLayouts,
             self.listWidgetRebuildCsvLayouts,
-            self.listWidgetRebuildTargetLayouts,
             self.listWidgetMapCopyTargets,
             self.listWidgetExpressionAvailableLayers,
             self.listWidgetExpressionSelectedLayers,
@@ -250,7 +249,6 @@ class MainDialog(QDialog, FORM_CLASS):
 
         self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetImportTargetLayouts, layout_entries)
-        self._set_items_with_checkboxes(self.listWidgetRebuildTargetLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetZOrderTargetLayouts, layout_entries)
         self._set_layout_combo_items(self.comboMapCopySourceLayout, layout_entries)
         self._set_layout_combo_items(self.comboMapCopyTargetLayout, layout_entries)
@@ -260,7 +258,12 @@ class MainDialog(QDialog, FORM_CLASS):
         self._reload_expression_available_layers()
         self._reload_expression_target_map_items()
 
-    def _set_items_with_checkboxes(self, list_widget: QListWidget, items: list[tuple[str, int]]) -> None:
+    def _set_items_with_checkboxes(
+        self,
+        list_widget: QListWidget,
+        items: list[tuple[str, int]],
+        checked_names: list[str] | None = None,
+    ) -> None:
         """チェックボックス付きリスト項目を再構築する。
 
         概要:
@@ -270,6 +273,7 @@ class MainDialog(QDialog, FORM_CLASS):
         引数:
             list_widget: 設定対象リスト。
             items: 表示項目一覧。要素は `(layout_name, map_item_count)`。
+            checked_names: チェック状態を復元するレイアウト名一覧。
 
         戻り値:
             なし。
@@ -280,13 +284,14 @@ class MainDialog(QDialog, FORM_CLASS):
         使用例:
             >>> dialog._set_items_with_checkboxes(widget, [("A", 2), ("B", 1)])
         """
+        checked_name_set = set(checked_names or [])
         list_widget.clear()
         for layout_name, map_item_count in items:
             display_text = f"{layout_name} ({map_item_count})"
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, layout_name)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Unchecked)
+            item.setCheckState(Qt.Checked if layout_name in checked_name_set else Qt.Unchecked)
             list_widget.addItem(item)
 
     def _set_layout_combo_items(self, combo_box: QComboBox, items: list[tuple[str, int]]) -> None:
@@ -513,29 +518,39 @@ class MainDialog(QDialog, FORM_CLASS):
             self._import_dataset = dataset
             self._set_items_with_checkboxes(self.listWidgetImportCsvLayouts, dataset.get_layout_name_with_counts())
 
-    def _load_csv_for_rebuild(self, path: str) -> None:
+    def _load_csv_for_rebuild(self, path: str) -> bool:
         """再作成用CSVを読み込む。
 
         概要:
             CSVサービスで読み込み、結果ログ表示と一覧反映を行う。
+            同名レイアウトが残っている場合はチェック状態を復元する。
 
         引数:
             path: CSVファイルパス。
 
         戻り値:
-            なし。
+            bool: 読み込み成功時はTrue、失敗時はFalse。
 
         例外:
             なし。
 
         使用例:
-            >>> dialog._load_csv_for_rebuild("/tmp/input.csv")
+            >>> ok = dialog._load_csv_for_rebuild("/tmp/input.csv")
         """
+        previous_checked_names = self._get_checked_items(self.listWidgetRebuildCsvLayouts)
         result, dataset = self._csv_service.read_csv(path)
         self._append_result_logs(result)
         if result.success:
             self._rebuild_dataset = dataset
-            self._set_items_with_checkboxes(self.listWidgetRebuildCsvLayouts, dataset.get_layout_name_with_counts())
+            self._set_items_with_checkboxes(
+                self.listWidgetRebuildCsvLayouts,
+                dataset.get_layout_name_with_counts(),
+                checked_names=previous_checked_names,
+            )
+            return True
+        self._rebuild_dataset = CsvLayoutDataset()
+        self.listWidgetRebuildCsvLayouts.clear()
+        return False
 
     def _reload_map_copy_source_map_items(self) -> None:
         """元地図選択コンボボックスを再構築する。
@@ -1194,12 +1209,14 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         csv_path = self.lineEditRebuildCsv.text().strip()
         template_path = self.lineEditTemplate.text().strip()
-        selected_targets = self._get_checked_items(self.listWidgetRebuildTargetLayouts)
+        selected_targets = self._get_checked_items(self.listWidgetRebuildCsvLayouts)
         validation = self._validate_rebuild_input(csv_path, template_path, selected_targets)
         if validation is not None:
             self._append_result_logs(validation)
             return
-        self._load_csv_for_rebuild(csv_path)
+        if not self._load_csv_for_rebuild(csv_path):
+            return
+        selected_targets = self._get_checked_items(self.listWidgetRebuildCsvLayouts)
         result = self._layout_rebuild_service.rebuild_layouts(
             dataset=self._rebuild_dataset,
             template_path=template_path,
@@ -1407,7 +1424,7 @@ class MainDialog(QDialog, FORM_CLASS):
         引数:
             csv_path: CSVパス。
             template_path: テンプレートQPTパス。
-            target_layouts: 再作成対象レイアウト名一覧。
+            target_layouts: 再作成対象CSVレイアウト名一覧。
 
         戻り値:
             OperationResult | None: エラー時は結果オブジェクト、問題ない場合None。
@@ -1423,7 +1440,7 @@ class MainDialog(QDialog, FORM_CLASS):
         if not template_path:
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "テンプレート未指定です")])
         if not target_layouts:
-            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "再作成対象レイアウト未選択です")])
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "再作成対象CSVレイアウト未選択です")])
         return None
 
     def _validate_map_copy_input(

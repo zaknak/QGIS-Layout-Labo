@@ -62,10 +62,8 @@
          <item><widget class="QPushButton" name="btnTemplateBrowse"><property name="text"><string>テンプレート参照</string></property></widget></item>
         </layout>
        </item>
-       <item><widget class="QLabel" name="labelRebuildCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
+       <item><widget class="QLabel" name="labelRebuildCsvLayouts"><property name="text"><string>CSV内レイアウト（再作成対象を選択）</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetRebuildCsvLayouts"/></item>
-       <item><widget class="QLabel" name="labelRebuildTargetLayouts"><property name="text"><string>再作成対象レイアウト</string></property></widget></item>
-       <item><widget class="QListWidget" name="listWidgetRebuildTargetLayouts"/></item>
        <item><widget class="QPushButton" name="btnRebuildRun"><property name="text"><string>再作成実行</string></property></widget></item>
       </layout>
      </widget>

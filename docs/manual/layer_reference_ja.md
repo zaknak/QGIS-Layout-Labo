@@ -195,6 +195,7 @@
 #### `LayoutRebuildService.rebuild_layouts(dataset, template_path, target_layout_names)`
 
 - 役割: QPTテンプレートからレイアウトを再作成しCSV内容を反映
+- 対象指定: `target_layout_names` はCSV内レイアウト一覧から選択された `layout_name` を受け取る
 - 前処理:
 - QPT読込 (`QDomDocument.setContent`)
 - 対象ごとに同名既存レイアウト削除 (`remove_layout_if_exists`)

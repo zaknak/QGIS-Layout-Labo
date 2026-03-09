@@ -51,7 +51,7 @@ class LayoutRebuildService:
         引数:
             dataset: CSV全体データ。
             template_path: QPTテンプレートファイルパス。
-            target_layout_names: 再作成対象レイアウト名一覧。
+            target_layout_names: CSV内から選択された再作成対象レイアウト名一覧。
 
         戻り値:
             OperationResult: 再作成処理結果。
