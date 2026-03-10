@@ -75,3 +75,28 @@
 - `docs/requirements.md` 6.4.2 地図アイテム任意コピー UI
 - `docs/requirements.md` 6.5.2 expression ビルダ UI
 - `docs/requirements.md` 6.6.2 ページ考慮 zvalue 再設定 UI
+
+## 2026-03-10 README を保守対象へ明文化
+
+### 決定内容
+
+`readme.md` を GitHub リポジトリの表紙兼簡易なユーザーマニュアルとして明示し、ユーザー向け機能、名称、操作手順、前提条件、UI 構成に変更がある場合は更新対象に含める。
+
+更新責務は次のように分担する。
+
+- `docs/requirements.md`: README の役割と更新条件を定義する
+- `AGENTS.md`: 実装時に README 更新要否を確認する運用ルールを定義する
+
+README は公開向け要約文書とし、詳細仕様の正本は引き続き `docs/requirements.md` とする。
+
+### 理由
+
+- README が古いままだと、初見ユーザーに現在の機能構成や操作方法を誤って案内してしまう
+- 公開向け文書としての README と、実装判断用の正本仕様である requirements の役割を分けた方が保守しやすい
+- `AGENTS.md` と `docs/requirements.md` の両方に明記すると、実装時の見落としと文書方針の抜けを同時に防げる
+
+### 影響範囲
+
+- `AGENTS.md` 要件の参照節
+- `docs/requirements.md` 1. 文書方針
+- `readme.md`
