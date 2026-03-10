@@ -15,6 +15,11 @@ from qgis.core import (
 from ..models.map_item_selection import MapItemSelection
 
 
+LAYER_DISPLAY_MODE_DEFAULT = "既定"
+LAYER_DISPLAY_MODE_EXPRESSION = "式"
+LAYER_DISPLAY_MODE_FIXED = "固定"
+
+
 def get_project_layout_names() -> list[str]:
     """現在プロジェクトのレイアウト名一覧を返す。
 
@@ -137,7 +142,8 @@ def build_map_item_selections(layout: object) -> list[MapItemSelection]:
 
     概要:
         同一 `map_item_id` の重複に対応するため、
-        出現順連番付きの表示名を持つ選択情報を生成する。
+        出現順連番と表示レイヤ設定モード付きの表示名を持つ
+        選択情報を生成する。
 
     引数:
         layout: 対象レイアウト。
@@ -158,15 +164,57 @@ def build_map_item_selections(layout: object) -> list[MapItemSelection]:
         map_item_id = item.id() or ""
         occurrence_index = id_counts.get(map_item_id, 0) + 1
         id_counts[map_item_id] = occurrence_index
-        display_name = f"{map_item_id} (#{occurrence_index})"
+        layer_display_mode, layer_display_expression = get_map_item_layer_display_state(item)
+        display_name = build_map_item_display_name(
+            map_item_id=map_item_id,
+            occurrence_index=occurrence_index,
+            layer_display_mode=layer_display_mode,
+            layer_display_expression=layer_display_expression,
+        )
         selections.append(
             MapItemSelection(
                 map_item_id=map_item_id,
                 occurrence_index=occurrence_index,
+                layer_display_mode=layer_display_mode,
+                layer_display_expression=layer_display_expression,
                 display_name=display_name,
             )
         )
     return selections
+
+
+def build_map_item_display_name(
+    map_item_id: str,
+    occurrence_index: int,
+    layer_display_mode: str,
+    layer_display_expression: str,
+) -> str:
+    """地図アイテム選択候補の表示名を組み立てる。
+
+    概要:
+        識別用連番と表示レイヤ設定モードを含む表示名を返す。
+        `式` モード時のみexpression内容を付加する。
+
+    引数:
+        map_item_id: 地図アイテムID。
+        occurrence_index: 同一ID内での1始まり出現順。
+        layer_display_mode: 表示レイヤ設定モード。
+        layer_display_expression: `式` モード時に表示するexpression。
+
+    戻り値:
+        str: UI表示名。
+
+    例外:
+        なし。
+
+    使用例:
+        >>> build_map_item_display_name("map1", 1, "既定", "")
+        'map1 (#1) [既定]'
+    """
+    base_name = f"{map_item_id} (#{occurrence_index})"
+    if layer_display_mode == LAYER_DISPLAY_MODE_EXPRESSION and layer_display_expression:
+        return f"{base_name} [{layer_display_mode}: {layer_display_expression}]"
+    return f"{base_name} [{layer_display_mode}]"
 
 
 def get_layout_map_item_selections(layout_name: str) -> list[MapItemSelection]:
@@ -248,6 +296,42 @@ def get_item_expression(map_item: QgsLayoutItemMap) -> str:
         return prop.expressionString() or ""
     except Exception as exc:
         raise RuntimeError(f"expression取得に失敗しました: {exc}") from exc
+
+
+def get_map_item_layer_display_state(map_item: QgsLayoutItemMap) -> tuple[str, str]:
+    """地図アイテムの表示レイヤ設定モードを返す。
+
+    概要:
+        data-defined expression とレイヤ固定設定を判定し、
+        UI表示用のモード名と必要に応じたexpressionを返す。
+
+    引数:
+        map_item: 対象地図アイテム。
+
+    戻り値:
+        tuple[str, str]:
+            `(layer_display_mode, layer_display_expression)`。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> mode, expression = get_map_item_layer_display_state(map_item)
+    """
+    try:
+        expression = get_item_expression(map_item)
+        if expression:
+            return (LAYER_DISPLAY_MODE_EXPRESSION, expression)
+
+        keep_layer_set_method = getattr(map_item, "keepLayerSet", None)
+        if callable(keep_layer_set_method) and bool(keep_layer_set_method()):
+            return (LAYER_DISPLAY_MODE_FIXED, "")
+
+        return (LAYER_DISPLAY_MODE_DEFAULT, "")
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"表示レイヤ設定モードの取得に失敗しました: {exc}") from exc
 
 
 def set_item_extent(map_item: QgsLayoutItemMap, rectangle: QgsRectangle) -> None:
