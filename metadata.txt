@@ -2,9 +2,9 @@
 name=Layout Labo
 qgisMinimumVersion=3.4
 description=Export/import/rebuild layout map extents and expressions via CSV.
-version=0.1.1
-author=Codex
-email=codex@example.com
+version=0.2.0
+author=zaknak
+email=
 about=Transfer map extent and dataDefinedMapLayers.expression between layouts.
 category=Layout
 icon=icon.png
