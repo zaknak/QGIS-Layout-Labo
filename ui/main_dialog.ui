@@ -15,6 +15,13 @@
       <attribute name="title"><string>エクスポート</string></attribute>
       <layout class="QVBoxLayout" name="verticalLayoutExport">
        <item><widget class="QPushButton" name="btnExportReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelExportLayouts"><property name="text"><string>レイアウト一覧</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutExportSelectButtons">
+         <item><widget class="QPushButton" name="btnExportSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnExportClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetExportLayouts"/></item>
        <item><widget class="QLabel" name="labelExportCsvPath"><property name="text"><string>出力CSVファイル</string></property></widget></item>
        <item>
@@ -40,6 +47,12 @@
        <item><widget class="QLabel" name="labelImportCsvLayouts"><property name="text"><string>CSV内レイアウト</string></property></widget></item>
        <item><widget class="QListWidget" name="listWidgetImportCsvLayouts"/></item>
        <item><widget class="QLabel" name="labelImportTargetLayouts"><property name="text"><string>適用対象レイアウト</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutImportTargetSelectButtons">
+         <item><widget class="QPushButton" name="btnImportTargetSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnImportTargetClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetImportTargetLayouts"/></item>
        <item><widget class="QPushButton" name="btnImportRun"><property name="text"><string>インポート実行</string></property></widget></item>
       </layout>
@@ -63,6 +76,12 @@
         </layout>
        </item>
        <item><widget class="QLabel" name="labelRebuildCsvLayouts"><property name="text"><string>CSV内レイアウト（再作成対象を選択）</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutRebuildSelectButtons">
+         <item><widget class="QPushButton" name="btnRebuildSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnRebuildClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetRebuildCsvLayouts"/></item>
        <item><widget class="QPushButton" name="btnRebuildRun"><property name="text"><string>再作成実行</string></property></widget></item>
       </layout>
@@ -81,6 +100,12 @@
        <item><widget class="QLabel" name="labelMapCopyTargetLayout"><property name="text"><string>コピー先レイアウト</string></property></widget></item>
        <item><widget class="QComboBox" name="comboMapCopyTargetLayout"/></item>
        <item><widget class="QLabel" name="labelMapCopyTargetMaps"><property name="text"><string>コピー先地図アイテム（複数選択可）</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutMapCopyTargetSelectButtons">
+         <item><widget class="QPushButton" name="btnMapCopyTargetSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnMapCopyTargetClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetMapCopyTargets"/></item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayoutMapCopyOptions">
@@ -117,6 +142,12 @@
        <item><widget class="QLabel" name="labelExpressionTargetLayout"><property name="text"><string>適用先レイアウト</string></property></widget></item>
        <item><widget class="QComboBox" name="comboExpressionTargetLayout"/></item>
        <item><widget class="QLabel" name="labelExpressionTargetMaps"><property name="text"><string>適用先地図アイテム（複数選択可）</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutExpressionTargetSelectButtons">
+         <item><widget class="QPushButton" name="btnExpressionTargetSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnExpressionTargetClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetExpressionTargetMaps"/></item>
       <item><widget class="QPushButton" name="btnExpressionApply"><property name="text"><string>expression適用</string></property></widget></item>
       </layout>
@@ -126,6 +157,12 @@
       <layout class="QVBoxLayout" name="verticalLayoutZOrder">
        <item><widget class="QPushButton" name="btnZOrderReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
        <item><widget class="QLabel" name="labelZOrderTargetLayouts"><property name="text"><string>zvalue再設定対象レイアウト</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutZOrderSelectButtons">
+         <item><widget class="QPushButton" name="btnZOrderSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnZOrderClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
        <item><widget class="QListWidget" name="listWidgetZOrderTargetLayouts"/></item>
        <item><widget class="QPushButton" name="btnZOrderRun"><property name="text"><string>ページ考慮zvalue再設定を実行</string></property></widget></item>
       </layout>
