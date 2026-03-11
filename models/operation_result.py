@@ -42,7 +42,7 @@ class LogMessage:
         level: ログレベル。
         message: 表示文言。
         layout_name: 対象レイアウト名。
-        map_item_id: 対象地図アイテムID。
+        map_item_id: 対象アイテムID。
         csv_line_no: 対象CSV行番号。
 
     戻り値:
@@ -83,7 +83,7 @@ class LogMessage:
         if self.layout_name:
             parts.append(f"layout={self.layout_name}")
         if self.map_item_id:
-            parts.append(f"map_item={self.map_item_id}")
+            parts.append(f"item={self.map_item_id}")
         if self.csv_line_no is not None:
             parts.append(f"line={self.csv_line_no}")
         return ": ".join([parts[0], " | ".join(parts[1:])])

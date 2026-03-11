@@ -3,11 +3,14 @@
 
 from __future__ import annotations
 
+from ..models.layout_item_selection import LayoutItemSelection
 from ..models.map_item_selection import MapItemSelection
 from ..models.operation_result import LogLevel, OperationResult
 from ..utils.logger import build_log
 from ..utils.qgis_layout_helpers import (
+    get_layout_item_selections,
     get_layout_map_item_selections,
+    get_project_layout_name_with_item_counts,
     get_project_layer_names_in_tree_order,
     get_project_layout_name_with_map_item_counts,
 )
@@ -65,6 +68,38 @@ class ProjectQueryService:
         result.target_layout_count = len(entries)
         return result, entries
 
+    def load_layout_name_with_item_counts(self) -> tuple[OperationResult, list[tuple[str, int]]]:
+        """レイアウト名と非ページアイテム数を取得する。
+
+        概要:
+            現在プロジェクトのレイアウト情報を取得し、
+            `(layout_name, item_count)` の一覧として返す。
+
+        引数:
+            なし。
+
+        戻り値:
+            tuple[OperationResult, list[tuple[str, int]]]:
+                処理結果とレイアウト情報一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> result, entries = service.load_layout_name_with_item_counts()
+        """
+        result = OperationResult(success=False)
+        try:
+            entries = get_project_layout_name_with_item_counts()
+        except RuntimeError as exc:
+            result.fatal_error = True
+            result.add_log(build_log(LogLevel.ERROR, str(exc)))
+            return result, []
+
+        result.success = True
+        result.target_layout_count = len(entries)
+        return result, entries
+
     def load_map_item_selections(self, layout_name: str) -> tuple[OperationResult, list[MapItemSelection]]:
         """指定レイアウトの地図アイテム選択候補を取得する。
 
@@ -92,6 +127,42 @@ class ProjectQueryService:
 
         try:
             selections = get_layout_map_item_selections(layout_name)
+        except RuntimeError as exc:
+            result.fatal_error = True
+            result.add_log(build_log(LogLevel.ERROR, str(exc)))
+            return result, []
+
+        result.success = True
+        result.target_layout_count = 1
+        return result, selections
+
+    def load_layout_item_selections(self, layout_name: str) -> tuple[OperationResult, list[LayoutItemSelection]]:
+        """指定レイアウトの非ページアイテム選択候補を取得する。
+
+        概要:
+            レイアウトアイテムの UUID と表示名を持つ
+            `LayoutItemSelection` 一覧を返す。
+
+        引数:
+            layout_name: 対象レイアウト名。
+
+        戻り値:
+            tuple[OperationResult, list[LayoutItemSelection]]:
+                処理結果とレイアウトアイテム選択候補一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> result, selections = service.load_layout_item_selections("LayoutA")
+        """
+        result = OperationResult(success=False)
+        if not layout_name:
+            result.success = True
+            return result, []
+
+        try:
+            selections = get_layout_item_selections(layout_name)
         except RuntimeError as exc:
             result.fatal_error = True
             result.add_log(build_log(LogLevel.ERROR, str(exc)))

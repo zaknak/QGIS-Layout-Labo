@@ -73,8 +73,8 @@
 - `docs/requirements.md` 6.2.6 インポート UI
 - `docs/requirements.md` 6.3.5 再作成 UI
 - `docs/requirements.md` 6.4.2 地図アイテム任意コピー UI
-- `docs/requirements.md` 6.5.2 expression ビルダ UI
-- `docs/requirements.md` 6.6.2 ページ考慮 zvalue 再設定 UI
+- `docs/requirements.md` 6.6.2 expression ビルダ UI
+- `docs/requirements.md` 6.7.2 ページ考慮 zvalue 再設定 UI
 
 ## 2026-03-10 README を保守対象へ明文化
 
@@ -122,6 +122,38 @@ expression ビルダの適用先地図アイテム一覧に、既存の `map_ite
 
 - `docs/requirements.md` 3.3.2 同一 ID 重複対応機能
 - `docs/requirements.md` 6.4.6 コピー先選択
-- `docs/requirements.md` 6.5.2 expression ビルダ UI
-- `docs/requirements.md` 6.5.6 expression 適用処理
+- `docs/requirements.md` 6.6.2 expression ビルダ UI
+- `docs/requirements.md` 6.6.6 expression 適用処理
 - `readme.md`
+
+## 2026-03-11 アイテム複製機能の追加方針
+
+### 決定内容
+
+複数レイアウトへのレイアウトアイテム複製は、既存の `地図アイテム任意コピー` とは統合せず、独立した `アイテム複製` 機能として追加する。
+
+複製元は単一レイアウト内の複数アイテム選択とし、選択した同一アイテムセットを複数のコピー先レイアウトへ新規追加する。
+
+複製対象は `QgsLayoutItemPage` を除くレイアウトアイテム全般とし、複製後の `item id` は元値を維持し、重複を許容する。
+
+コピー先では位置補正や既存アイテム上書きを行わず、元のシーン座標系を維持して追加する。ページ構成差やはみ出しは警告で扱う。
+
+コピー元レイアウト自身はコピー先に選択不可とする。
+
+### 理由
+
+- 地図コピーは既存地図アイテムへの属性転写であり、レイアウトアイテムを新規追加する複製とは責務が異なる
+- 地図に限らずラベル、凡例、図形などを対象にしたい要件のため、地図専用UIや `map_item_id` 前提へ寄せると仕様が不自然になる
+- コピー先で既存アイテムを変更しない方が、実行結果が予測しやすく、既存レイアウト破壊の危険を抑えられる
+- `item id` を維持した方が、元アイテムとの対応を追跡しやすく、QGIS 側で許容される重複を無理に変換しなくてよい
+- 配置補正を導入するとページ差異ごとの判断規則が大きく増えるため、初版は座標維持と警告運用の方が仕様を安定化できる
+- 同一レイアウトへの複製を許可すると、誤操作時に短時間で大量重複を作りやすいため、初版では禁止する
+
+### 影響範囲
+
+- `docs/requirements.md` 2.1 目的
+- `docs/requirements.md` 3.1 提供機能
+- `docs/requirements.md` 4.11 結果オブジェクト
+- `docs/requirements.md` 5.2 タブ構成
+- `docs/requirements.md` 6.5 アイテム複製
+- `docs/requirements.md` 7.12 例外処理
