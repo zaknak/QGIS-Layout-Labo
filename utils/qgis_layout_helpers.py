@@ -3,15 +3,21 @@
 
 from __future__ import annotations
 
+from qgis.PyQt.QtCore import QPointF, QRectF
+from qgis.PyQt.QtXml import QDomDocument
 from qgis.core import (
+    QgsLayoutItem,
     QgsLayoutItemMap,
+    QgsLayoutItemPage,
     QgsLayerTreeLayer,
     QgsLayoutObject,
     QgsProject,
     QgsProperty,
     QgsRectangle,
+    QgsReadWriteContext,
 )
 
+from ..models.layout_item_selection import LayoutItemSelection
 from ..models.map_item_selection import MapItemSelection
 
 
@@ -76,6 +82,36 @@ def get_project_layout_name_with_map_item_counts() -> list[tuple[str, int]]:
         raise RuntimeError(f"レイアウト一覧の取得に失敗しました: {exc}") from exc
 
 
+def get_project_layout_name_with_item_counts() -> list[tuple[str, int]]:
+    """現在プロジェクトのレイアウト名と非ページアイテム数を返す。
+
+    概要:
+        各レイアウトからページ以外のレイアウトアイテム数を取得し、
+        レイアウト名昇順で `(layout_name, item_count)` の一覧を返す。
+
+    引数:
+        なし。
+
+    戻り値:
+        list[tuple[str, int]]: レイアウト名と非ページアイテム数の一覧。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> entries = get_project_layout_name_with_item_counts()
+    """
+    try:
+        manager = QgsProject.instance().layoutManager()
+        entries: list[tuple[str, int]] = []
+        for layout in manager.layouts():
+            item_count = len(get_layout_items(layout))
+            entries.append((layout.name(), item_count))
+        return sorted(entries, key=lambda entry: entry[0])
+    except Exception as exc:
+        raise RuntimeError(f"レイアウト一覧の取得に失敗しました: {exc}") from exc
+
+
 def get_project_layer_names_in_tree_order() -> list[str]:
     """レイヤパネル順のレイヤ名一覧を返す。
 
@@ -135,6 +171,38 @@ def get_map_items(layout: object) -> list[QgsLayoutItemMap]:
         return items
     except Exception as exc:
         raise RuntimeError(f"地図アイテムの取得に失敗しました: {exc}") from exc
+
+
+def get_layout_items(layout: object) -> list[QgsLayoutItem]:
+    """レイアウト内の非ページアイテム一覧を取得する。
+
+    概要:
+        指定レイアウトから `QgsLayoutItemPage` を除く
+        `QgsLayoutItem` 一覧を抽出する。
+
+    引数:
+        layout: 対象レイアウト。
+
+    戻り値:
+        list[QgsLayoutItem]: 非ページレイアウトアイテム一覧。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> items = get_layout_items(layout)
+    """
+    try:
+        items: list[QgsLayoutItem] = []
+        for item in layout.items():
+            if not isinstance(item, QgsLayoutItem):
+                continue
+            if isinstance(item, QgsLayoutItemPage):
+                continue
+            items.append(item)
+        return items
+    except Exception as exc:
+        raise RuntimeError(f"レイアウトアイテムの取得に失敗しました: {exc}") from exc
 
 
 def build_map_item_selections(layout: object) -> list[MapItemSelection]:
@@ -217,6 +285,49 @@ def build_map_item_display_name(
     return f"{base_name} [{layer_display_mode}]"
 
 
+def build_layout_item_selections(layout: object) -> list[LayoutItemSelection]:
+    """レイアウト内非ページアイテムの選択情報一覧を返す。
+
+    概要:
+        各レイアウトアイテムのUUID、種別、item id、所属ページを
+        UI選択用の `LayoutItemSelection` として返す。
+
+    引数:
+        layout: 対象レイアウト。
+
+    戻り値:
+        list[LayoutItemSelection]: UI選択用の識別情報一覧。
+
+    例外:
+        RuntimeError: レイアウトアイテム取得や表示情報生成に失敗した場合。
+
+    使用例:
+        >>> selections = build_layout_item_selections(layout)
+    """
+    selections: list[LayoutItemSelection] = []
+    for item in get_layout_items(layout):
+        item_id = ""
+        item_id_method = getattr(item, "id", None)
+        if callable(item_id_method):
+            item_id = item_id_method() or ""
+        item_uuid_method = getattr(item, "uuid", None)
+        item_uuid = item_uuid_method() if callable(item_uuid_method) else ""
+        item_type_name = get_layout_item_type_name(item)
+        page_name = get_layout_item_page_name(item)
+        display_id = item_id or "(IDなし)"
+        display_name = f"{item_type_name} / {display_id} / {page_name}"
+        selections.append(
+            LayoutItemSelection(
+                item_uuid=item_uuid,
+                item_id=item_id,
+                item_type_name=item_type_name,
+                page_name=page_name,
+                display_name=display_name,
+            )
+        )
+    return selections
+
+
 def get_layout_map_item_selections(layout_name: str) -> list[MapItemSelection]:
     """指定レイアウト名の地図アイテム選択情報一覧を返す。
 
@@ -239,6 +350,31 @@ def get_layout_map_item_selections(layout_name: str) -> list[MapItemSelection]:
     if layout is None:
         return []
     return build_map_item_selections(layout)
+
+
+def get_layout_item_selections(layout_name: str) -> list[LayoutItemSelection]:
+    """指定レイアウト名の非ページアイテム選択情報一覧を返す。
+
+    概要:
+        レイアウト名で対象レイアウトを取得し、
+        `LayoutItemSelection` 一覧を生成する。
+
+    引数:
+        layout_name: 対象レイアウト名。
+
+    戻り値:
+        list[LayoutItemSelection]: 選択情報一覧。対象レイアウトが無い場合は空。
+
+    例外:
+        RuntimeError: QGIS API呼び出しに失敗した場合。
+
+    使用例:
+        >>> selections = get_layout_item_selections("LayoutA")
+    """
+    layout = find_layout_by_name(layout_name)
+    if layout is None:
+        return []
+    return build_layout_item_selections(layout)
 
 
 def find_map_item_by_selection(layout: object, selection: MapItemSelection) -> QgsLayoutItemMap | None:
@@ -267,6 +403,34 @@ def find_map_item_by_selection(layout: object, selection: MapItemSelection) -> Q
             continue
         matched_count += 1
         if matched_count == selection.occurrence_index:
+            return item
+    return None
+
+
+def find_layout_item_by_uuid(layout: object, item_uuid: str) -> QgsLayoutItem | None:
+    """UUIDでレイアウトアイテムを解決する。
+
+    概要:
+        非ページレイアウトアイテム一覧を走査し、
+        UUIDが一致するアイテムを返す。
+
+    引数:
+        layout: 対象レイアウト。
+        item_uuid: 検索対象UUID。
+
+    戻り値:
+        QgsLayoutItem | None: 一致アイテム。見つからない場合はNone。
+
+    例外:
+        RuntimeError: レイアウトアイテム取得に失敗した場合。
+
+    使用例:
+        >>> item = find_layout_item_by_uuid(layout, "uuid-1")
+    """
+    for item in get_layout_items(layout):
+        item_uuid_method = getattr(item, "uuid", None)
+        current_uuid = item_uuid_method() if callable(item_uuid_method) else ""
+        if current_uuid == item_uuid:
             return item
     return None
 
@@ -332,6 +496,211 @@ def get_map_item_layer_display_state(map_item: QgsLayoutItemMap) -> tuple[str, s
         raise
     except Exception as exc:
         raise RuntimeError(f"表示レイヤ設定モードの取得に失敗しました: {exc}") from exc
+
+
+def get_layout_item_type_name(item: QgsLayoutItem) -> str:
+    """レイアウトアイテムの表示用種別名を返す。
+
+    概要:
+        Qtメタオブジェクトのクラス名から、日本語の種別表示名を返す。
+
+    引数:
+        item: 対象レイアウトアイテム。
+
+    戻り値:
+        str: 表示用種別名。
+
+    例外:
+        なし。
+
+    使用例:
+        >>> type_name = get_layout_item_type_name(item)
+    """
+    class_name = item.metaObject().className() if item.metaObject() is not None else item.__class__.__name__
+    type_map: list[tuple[str, str]] = [
+        ("QgsLayoutItemMap", "地図"),
+        ("QgsLayoutItemLabel", "ラベル"),
+        ("QgsLayoutItemPicture", "画像"),
+        ("QgsLayoutItemLegend", "凡例"),
+        ("QgsLayoutItemScaleBar", "スケールバー"),
+        ("QgsLayoutItemShape", "図形"),
+        ("QgsLayoutItemPolyline", "図形"),
+        ("QgsLayoutItemPolygon", "図形"),
+        ("QgsLayoutItemRect", "図形"),
+        ("QgsLayoutItemEllipse", "図形"),
+        ("QgsLayoutItemTriangle", "図形"),
+        ("QgsLayoutItemHtml", "HTML"),
+        ("QgsLayoutItemAttributeTable", "属性テーブル"),
+        ("QgsLayoutItemManualTable", "表"),
+        ("QgsLayoutItemTextTable", "表"),
+        ("QgsLayoutItemFrame", "フレーム"),
+    ]
+    for prefix, display_name in type_map:
+        if class_name.startswith(prefix):
+            return display_name
+    return class_name.replace("QgsLayoutItem", "") or class_name
+
+
+def get_layout_item_page_name(item: QgsLayoutItem) -> str:
+    """レイアウトアイテムの所属ページ名を返す。
+
+    概要:
+        シーン矩形中心点から所属ページを判定し、
+        `1ページ目` 形式または `ページ外` を返す。
+
+    引数:
+        item: 対象レイアウトアイテム。
+
+    戻り値:
+        str: 所属ページ名。
+
+    例外:
+        RuntimeError: ページ情報取得に失敗した場合。
+
+    使用例:
+        >>> page_name = get_layout_item_page_name(item)
+    """
+    try:
+        layout = item.layout()
+        if layout is None:
+            return "ページ外"
+        page_rects = get_layout_page_rects(layout)
+        item_rect = item.sceneBoundingRect()
+        page_index = resolve_page_index(item_rect.center(), page_rects)
+        if page_index is None:
+            return "ページ外"
+        return f"{page_index + 1}ページ目"
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"所属ページ判定に失敗しました: {exc}") from exc
+
+
+def get_layout_page_rects(layout: object) -> list[QRectF]:
+    """レイアウトのページ矩形一覧を取得する。
+
+    概要:
+        ページコレクションからシーン矩形をページ順で返す。
+
+    引数:
+        layout: 対象レイアウト。
+
+    戻り値:
+        list[QRectF]: ページ矩形一覧。
+
+    例外:
+        RuntimeError: ページ情報取得に失敗した場合。
+
+    使用例:
+        >>> rects = get_layout_page_rects(layout)
+    """
+    try:
+        page_collection = layout.pageCollection()
+        pages = page_collection.pages()
+        rects: list[QRectF] = []
+        for page in pages:
+            rects.append(page.sceneBoundingRect())
+        return rects
+    except Exception as exc:
+        raise RuntimeError(f"ページ情報取得に失敗しました: {exc}") from exc
+
+
+def resolve_page_index(center_point: QPointF, page_rects: list[QRectF]) -> int | None:
+    """中心点から所属ページ番号を返す。
+
+    概要:
+        中心点を含む最初のページ矩形を探索し、
+        0始まりのページ番号を返す。
+
+    引数:
+        center_point: 判定対象中心点。
+        page_rects: ページ矩形一覧。
+
+    戻り値:
+        int | None: 所属ページ番号。ページ外はNone。
+
+    例外:
+        なし。
+
+    使用例:
+        >>> page_index = resolve_page_index(point, rects)
+    """
+    for page_index, page_rect in enumerate(page_rects):
+        if page_rect.contains(center_point):
+            return page_index
+    return None
+
+
+def serialize_layout_items_to_xml(items: list[QgsLayoutItem]) -> QDomDocument:
+    """レイアウトアイテム群を複製用XMLへ変換する。
+
+    概要:
+        `writeXml()` を使って、複数のレイアウトアイテムを
+        `QDomDocument` へシリアライズする。
+
+    引数:
+        items: シリアライズ対象アイテム一覧。
+
+    戻り値:
+        QDomDocument: 複製用XMLドキュメント。
+
+    例外:
+        RuntimeError: XML生成に失敗した場合。
+
+    使用例:
+        >>> dom = serialize_layout_items_to_xml(items)
+    """
+    if not items:
+        raise RuntimeError("複製対象アイテムがありません")
+
+    try:
+        document = QDomDocument("LayoutLaboDuplicateItems")
+        root = document.createElement("LayoutLaboDuplicateItems")
+        document.appendChild(root)
+        context = QgsReadWriteContext()
+        for item in items:
+            if not item.writeXml(root, document, context):
+                item_id = item.id() if callable(getattr(item, "id", None)) else ""
+                raise RuntimeError(f"レイアウトアイテムのシリアライズに失敗しました: {item_id or 'item'}")
+        return document
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"レイアウトアイテムのシリアライズに失敗しました: {exc}") from exc
+
+
+def duplicate_layout_items_to_layout(target_layout: object, source_dom: QDomDocument) -> list[QgsLayoutItem]:
+    """XML化済みアイテム群を対象レイアウトへ複製追加する。
+
+    概要:
+        `QgsPrintLayout.addItemsFromXml()` を使い、
+        既存レイアウトへ新規アイテムとして追加する。
+
+    引数:
+        target_layout: コピー先レイアウト。
+        source_dom: 複製元XMLドキュメント。
+
+    戻り値:
+        list[QgsLayoutItem]: 追加されたレイアウトアイテム一覧。
+
+    例外:
+        RuntimeError: 複製追加に失敗した場合。
+
+    使用例:
+        >>> copied = duplicate_layout_items_to_layout(layout, dom)
+    """
+    try:
+        element = source_dom.documentElement()
+        if element.isNull():
+            raise RuntimeError("複製元XMLが空です")
+        copied_items = target_layout.addItemsFromXml(element, source_dom, QgsReadWriteContext())
+        if copied_items is None:
+            raise RuntimeError("レイアウトアイテムの複製追加に失敗しました")
+        return [item for item in copied_items if isinstance(item, QgsLayoutItem)]
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"レイアウトアイテムの複製追加に失敗しました: {exc}") from exc
 
 
 def set_item_extent(map_item: QgsLayoutItemMap, rectangle: QgsRectangle) -> None:

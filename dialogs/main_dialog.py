@@ -17,6 +17,7 @@ from qgis.PyQt.QtWidgets import (
 )
 
 from ..models.csv_layout_dataset import CsvLayoutDataset
+from ..models.layout_item_selection import LayoutItemSelection
 from ..models.map_copy_snapshot import MapCopySnapshot
 from ..models.map_item_selection import MapItemSelection
 from ..models.operation_result import LogLevel, OperationResult
@@ -25,6 +26,7 @@ from ..services.expression_builder_service import ExpressionBuilderService
 from ..services.layout_export_service import LayoutExportService
 from ..services.layout_designer_service import LayoutDesignerService
 from ..services.layout_import_service import LayoutImportService
+from ..services.layout_item_duplicate_service import LayoutItemDuplicateService
 from ..services.layout_map_copy_service import LayoutMapCopyService
 from ..services.project_query_service import ProjectQueryService
 from ..services.layout_rebuild_service import LayoutRebuildService
@@ -83,6 +85,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._layout_import_service = LayoutImportService()
         self._layout_rebuild_service = LayoutRebuildService()
         self._layout_map_copy_service = LayoutMapCopyService()
+        self._layout_item_duplicate_service = LayoutItemDuplicateService()
         self._expression_builder_service = ExpressionBuilderService()
         self._layout_z_order_service = LayoutZOrderService()
         self._project_query_service = ProjectQueryService()
@@ -94,6 +97,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self._source_map_selections: list[MapItemSelection] = []
         self._target_map_selections: list[MapItemSelection] = []
         self._map_copy_snapshot: MapCopySnapshot | None = None
+        self._duplicate_source_item_selections: list[LayoutItemSelection] = []
         self._expression_target_map_selections: list[MapItemSelection] = []
 
         self._configure_widgets()
@@ -148,6 +152,8 @@ class MainDialog(QDialog, FORM_CLASS):
             self.listWidgetImportTargetLayouts,
             self.listWidgetRebuildCsvLayouts,
             self.listWidgetMapCopyTargets,
+            self.listWidgetItemDuplicateSourceItems,
+            self.listWidgetItemDuplicateTargetLayouts,
             self.listWidgetExpressionAvailableLayers,
             self.listWidgetExpressionSelectedLayers,
             self.listWidgetExpressionTargetMaps,
@@ -180,6 +186,7 @@ class MainDialog(QDialog, FORM_CLASS):
         self.btnImportReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnRebuildReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnMapCopyReload.clicked.connect(self.refresh_project_layout_lists)
+        self.btnItemDuplicateReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnExpressionReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnZOrderReload.clicked.connect(self.refresh_project_layout_lists)
         self.btnExportBrowse.clicked.connect(self._browse_export_csv)
@@ -194,6 +201,10 @@ class MainDialog(QDialog, FORM_CLASS):
         self.btnRebuildClearSelection.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetRebuildCsvLayouts, Qt.Unchecked))
         self.btnMapCopyTargetSelectAll.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetMapCopyTargets, Qt.Checked))
         self.btnMapCopyTargetClearSelection.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetMapCopyTargets, Qt.Unchecked))
+        self.btnItemDuplicateSourceSelectAll.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetItemDuplicateSourceItems, Qt.Checked))
+        self.btnItemDuplicateSourceClearSelection.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetItemDuplicateSourceItems, Qt.Unchecked))
+        self.btnItemDuplicateTargetSelectAll.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetItemDuplicateTargetLayouts, Qt.Checked))
+        self.btnItemDuplicateTargetClearSelection.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetItemDuplicateTargetLayouts, Qt.Unchecked))
         self.btnExpressionTargetSelectAll.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetExpressionTargetMaps, Qt.Checked))
         self.btnExpressionTargetClearSelection.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetExpressionTargetMaps, Qt.Unchecked))
         self.btnZOrderSelectAll.clicked.connect(lambda: self._set_check_state_for_all_items(self.listWidgetZOrderTargetLayouts, Qt.Checked))
@@ -206,6 +217,8 @@ class MainDialog(QDialog, FORM_CLASS):
         self.comboMapCopyTargetLayout.currentIndexChanged.connect(self._on_map_copy_target_layout_changed)
         self.btnMapCopyCapture.clicked.connect(self._capture_map_copy_snapshot)
         self.btnMapCopyRun.clicked.connect(self._run_map_copy)
+        self.comboItemDuplicateSourceLayout.currentIndexChanged.connect(self._on_item_duplicate_source_layout_changed)
+        self.btnItemDuplicateRun.clicked.connect(self._run_item_duplicate)
         self.comboExpressionTargetLayout.currentIndexChanged.connect(self._on_expression_target_layout_changed)
         self.btnExpressionAddLayer.clicked.connect(self._add_expression_layers)
         self.btnExpressionRemoveLayer.clicked.connect(self._remove_expression_layers)
@@ -258,15 +271,22 @@ class MainDialog(QDialog, FORM_CLASS):
         if not query_result.success:
             self._append_result_logs(query_result)
             return
+        item_count_result, item_layout_entries = self._project_query_service.load_layout_name_with_item_counts()
+        if not item_count_result.success:
+            self._append_result_logs(item_count_result)
+            return
 
         self._set_items_with_checkboxes(self.listWidgetExportLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetImportTargetLayouts, layout_entries)
         self._set_items_with_checkboxes(self.listWidgetZOrderTargetLayouts, layout_entries)
         self._set_layout_combo_items(self.comboMapCopySourceLayout, layout_entries)
         self._set_layout_combo_items(self.comboMapCopyTargetLayout, layout_entries)
+        self._set_layout_combo_items(self.comboItemDuplicateSourceLayout, item_layout_entries)
         self._set_layout_combo_items(self.comboExpressionTargetLayout, layout_entries)
         self._reload_map_copy_source_map_items()
         self._reload_map_copy_target_map_items()
+        self._reload_item_duplicate_source_items()
+        self._reload_item_duplicate_target_layouts(item_layout_entries)
         self._reload_expression_available_layers()
         self._reload_expression_target_map_items()
 
@@ -438,6 +458,26 @@ class MainDialog(QDialog, FORM_CLASS):
             >>> key = dialog._selection_key(selection)
         """
         return (selection.map_item_id, selection.occurrence_index)
+
+    def _layout_item_selection_key(self, selection: LayoutItemSelection) -> str:
+        """レイアウトアイテム選択情報の比較キーを返す。
+
+        概要:
+            UI再構築時の選択復元に使うUUIDキーを返す。
+
+        引数:
+            selection: 対象のレイアウトアイテム選択情報。
+
+        戻り値:
+            str: UUID文字列。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> key = dialog._layout_item_selection_key(selection)
+        """
+        return selection.item_uuid
 
     def _browse_export_csv(self) -> None:
         """エクスポート先CSVを選択する。
@@ -670,6 +710,80 @@ class MainDialog(QDialog, FORM_CLASS):
             else:
                 item.setCheckState(Qt.Unchecked)
             self.listWidgetMapCopyTargets.addItem(item)
+
+    def _reload_item_duplicate_source_items(self) -> None:
+        """複製元アイテム一覧を再構築する。
+
+        概要:
+            現在の元レイアウトに属する非ページアイテムを取得し、
+            チェックボックス付き複数選択リストへ設定する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._reload_item_duplicate_source_items()
+        """
+        layout_name = self._get_selected_layout_name(self.comboItemDuplicateSourceLayout)
+        previous_checked_keys = {
+            self._layout_item_selection_key(selection) for selection in self._get_checked_duplicate_source_item_selections()
+        }
+        query_result, selections = self._project_query_service.load_layout_item_selections(layout_name)
+        if not query_result.success:
+            self._duplicate_source_item_selections = []
+            self._append_result_logs(query_result)
+        else:
+            self._duplicate_source_item_selections = selections
+
+        self.listWidgetItemDuplicateSourceItems.clear()
+        for index, selection in enumerate(self._duplicate_source_item_selections):
+            item = QListWidgetItem(selection.display_name)
+            item.setData(Qt.UserRole, index)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            if self._layout_item_selection_key(selection) in previous_checked_keys:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+            self.listWidgetItemDuplicateSourceItems.addItem(item)
+
+    def _reload_item_duplicate_target_layouts(self, layout_entries: list[tuple[str, int]] | None = None) -> None:
+        """複製先レイアウト一覧を再構築する。
+
+        概要:
+            元レイアウトを除外したレイアウト一覧を、チェックボックス付き
+            複数選択リストへ設定する。
+
+        引数:
+            layout_entries: 既取得の `(layout_name, item_count)` 一覧。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._reload_item_duplicate_target_layouts(entries)
+        """
+        checked_names = self._get_checked_items(self.listWidgetItemDuplicateTargetLayouts)
+        source_layout_name = self._get_selected_layout_name(self.comboItemDuplicateSourceLayout)
+        if layout_entries is None:
+            query_result, layout_entries = self._project_query_service.load_layout_name_with_item_counts()
+            if not query_result.success:
+                self._append_result_logs(query_result)
+                return
+        filtered_entries = [entry for entry in layout_entries if entry[0] != source_layout_name]
+        self._set_items_with_checkboxes(
+            self.listWidgetItemDuplicateTargetLayouts,
+            filtered_entries,
+            checked_names=checked_names,
+        )
 
     def _reload_expression_available_layers(self) -> None:
         """expressionビルダの利用可能レイヤ一覧を再構築する。
@@ -1024,6 +1138,28 @@ class MainDialog(QDialog, FORM_CLASS):
         """
         self._reload_map_copy_target_map_items()
 
+    def _on_item_duplicate_source_layout_changed(self, _index: int) -> None:
+        """複製元レイアウト変更時の処理を行う。
+
+        概要:
+            元アイテム一覧とコピー先レイアウト一覧を再取得し、
+            コピー元自身をコピー先候補から除外する。
+
+        引数:
+            _index: 変更後インデックス。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._on_item_duplicate_source_layout_changed(0)
+        """
+        self._reload_item_duplicate_source_items()
+        self._reload_item_duplicate_target_layouts()
+
     def _clear_map_copy_snapshot(self) -> None:
         """地図コピー用スナップショットをクリアする。
 
@@ -1100,6 +1236,38 @@ class MainDialog(QDialog, FORM_CLASS):
             if data < 0 or data >= len(self._target_map_selections):
                 continue
             checked.append(self._target_map_selections[data])
+        return checked
+
+    def _get_checked_duplicate_source_item_selections(self) -> list[LayoutItemSelection]:
+        """複製元アイテム一覧のチェック済み選択を返す。
+
+        概要:
+            複数選択リストのチェック状態を走査し、
+            選択されたレイアウトアイテム識別情報を返す。
+
+        引数:
+            なし。
+
+        戻り値:
+            list[LayoutItemSelection]: チェック済み選択情報一覧。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> selections = dialog._get_checked_duplicate_source_item_selections()
+        """
+        checked: list[LayoutItemSelection] = []
+        for index in range(self.listWidgetItemDuplicateSourceItems.count()):
+            item = self.listWidgetItemDuplicateSourceItems.item(index)
+            if item.checkState() != Qt.Checked:
+                continue
+            data = item.data(Qt.UserRole)
+            if not isinstance(data, int):
+                continue
+            if data < 0 or data >= len(self._duplicate_source_item_selections):
+                continue
+            checked.append(self._duplicate_source_item_selections[data])
         return checked
 
     def _format_snapshot_text(self, snapshot: MapCopySnapshot) -> str:
@@ -1303,6 +1471,46 @@ class MainDialog(QDialog, FORM_CLASS):
             target_selections=target_selections,
             apply_extent=apply_extent,
             apply_expression=apply_expression,
+        )
+        self._append_result_logs(result)
+        self.refresh_project_layout_lists()
+
+    def _run_item_duplicate(self) -> None:
+        """アイテム複製処理を実行する。
+
+        概要:
+            元レイアウト、元アイテム、コピー先レイアウト選択を検証し、
+            サービス経由で複数レイアウトへ複製追加する。
+
+        引数:
+            なし。
+
+        戻り値:
+            なし。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> dialog._run_item_duplicate()
+        """
+        source_layout_name = self._get_selected_layout_name(self.comboItemDuplicateSourceLayout)
+        source_selections = self._get_checked_duplicate_source_item_selections()
+        target_layout_names = self._get_checked_items(self.listWidgetItemDuplicateTargetLayouts)
+
+        validation = self._validate_item_duplicate_input(
+            source_layout_name=source_layout_name,
+            source_selections=source_selections,
+            target_layout_names=target_layout_names,
+        )
+        if validation is not None:
+            self._append_result_logs(validation)
+            return
+
+        result = self._layout_item_duplicate_service.duplicate_items(
+            source_layout_name=source_layout_name,
+            source_selections=source_selections,
+            target_layout_names=target_layout_names,
         )
         self._append_result_logs(result)
         self.refresh_project_layout_lists()
@@ -1550,6 +1758,47 @@ class MainDialog(QDialog, FORM_CLASS):
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先レイアウト未選択です")])
         if not target_selections:
             return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "適用先地図アイテム未選択です")])
+        return None
+
+    def _validate_item_duplicate_input(
+        self,
+        source_layout_name: str,
+        source_selections: list[LayoutItemSelection],
+        target_layout_names: list[str],
+    ) -> OperationResult | None:
+        """アイテム複製入力の検証を行う。
+
+        概要:
+            元レイアウト、元アイテム、コピー先レイアウトの必須条件と
+            同一レイアウト禁止条件を検証する。
+
+        引数:
+            source_layout_name: 元レイアウト名。
+            source_selections: 元アイテム選択情報一覧。
+            target_layout_names: コピー先レイアウト名一覧。
+
+        戻り値:
+            OperationResult | None: エラー時は結果オブジェクト、問題ない場合None。
+
+        例外:
+            なし。
+
+        使用例:
+            >>> err = dialog._validate_item_duplicate_input("LayoutA", selections, ["LayoutB"])
+        """
+        if not source_layout_name:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "元レイアウト未選択です")])
+        if not source_selections:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "元アイテム未選択です")])
+        if not target_layout_names:
+            return OperationResult(success=False, fatal_error=True, has_error=True, logs=[build_log(LogLevel.ERROR, "コピー先レイアウト未選択です")])
+        if source_layout_name in target_layout_names:
+            return OperationResult(
+                success=False,
+                fatal_error=True,
+                has_error=True,
+                logs=[build_log(LogLevel.ERROR, "コピー元レイアウトをコピー先に含めることはできません")],
+            )
         return None
 
     def _validate_z_order_input(self, target_layouts: list[str]) -> OperationResult | None:

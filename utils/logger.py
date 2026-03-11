@@ -22,7 +22,7 @@ def build_log(
         level: ログレベル。
         message: 文言。
         layout_name: 対象レイアウト名。
-        map_item_id: 対象地図アイテムID。
+        map_item_id: 対象アイテムID。
         csv_line_no: CSV行番号。
 
     戻り値:

@@ -116,6 +116,31 @@
       <item><widget class="QPushButton" name="btnMapCopyRun"><property name="text"><string>コピー実施</string></property></widget></item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabItemDuplicate">
+      <attribute name="title"><string>アイテム複製</string></attribute>
+      <layout class="QVBoxLayout" name="verticalLayoutItemDuplicate">
+       <item><widget class="QPushButton" name="btnItemDuplicateReload"><property name="text"><string>レイアウト再読込</string></property></widget></item>
+       <item><widget class="QLabel" name="labelItemDuplicateSourceLayout"><property name="text"><string>元レイアウト</string></property></widget></item>
+       <item><widget class="QComboBox" name="comboItemDuplicateSourceLayout"/></item>
+       <item><widget class="QLabel" name="labelItemDuplicateSourceItems"><property name="text"><string>元アイテム（複数選択可）</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutItemDuplicateSourceSelectButtons">
+         <item><widget class="QPushButton" name="btnItemDuplicateSourceSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnItemDuplicateSourceClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QListWidget" name="listWidgetItemDuplicateSourceItems"/></item>
+       <item><widget class="QLabel" name="labelItemDuplicateTargetLayouts"><property name="text"><string>コピー先レイアウト</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayoutItemDuplicateTargetSelectButtons">
+         <item><widget class="QPushButton" name="btnItemDuplicateTargetSelectAll"><property name="text"><string>全選択</string></property></widget></item>
+         <item><widget class="QPushButton" name="btnItemDuplicateTargetClearSelection"><property name="text"><string>全選択解除</string></property></widget></item>
+        </layout>
+       </item>
+       <item><widget class="QListWidget" name="listWidgetItemDuplicateTargetLayouts"/></item>
+       <item><widget class="QPushButton" name="btnItemDuplicateRun"><property name="text"><string>複製実行</string></property></widget></item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="tabExpressionBuilder">
       <attribute name="title"><string>expressionビルダ</string></attribute>
       <layout class="QVBoxLayout" name="verticalLayoutExpressionBuilder">
